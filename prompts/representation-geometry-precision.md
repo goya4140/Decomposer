@@ -1,0 +1,1 @@
+Check the attached image before choosing each primitive kind. Use `rect` for visibly square corners and `round_rect` only for visibly rounded corners. Draw a line or path only when its stroke is visible in the source image; do not invent guide lines or decorative strokes. Preserve visible internal structures inside containers.

@@ -1,0 +1,15 @@
+.venv/
+node_modules/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+config.local.json
+config.*.local.json
+runs/
+knowledge/
+data/
+*.pptx
+*.log
