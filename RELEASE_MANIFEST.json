@@ -22,8 +22,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 4811,
-      "sha256": "d394843119b4c8359335dd6a732d5f6bd0ac14c0ac45fd2b082078a8f390afd6"
+      "bytes": 18378,
+      "sha256": "797c5eac01cc8c38005dfe5154f6b65a616f73e95b287a3a94e58ac6db911c3d"
     },
     {
       "path": "adapters/openai_compatible_vision.py",
