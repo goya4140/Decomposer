@@ -9,8 +9,8 @@ if [[ ! -f .env ]]; then
 fi
 if [[ "${1:-}" == '--docker' ]]; then
   command -v docker >/dev/null || { echo 'Install Docker with Compose first.'; exit 1; }
-  docker compose up --build -d
-  echo 'Decomposer: http://127.0.0.1:7860 (docker compose logs -f to inspect startup)'
+  docker compose up --build -d --wait --wait-timeout 120
+  echo 'Decomposer is ready: http://127.0.0.1:7860'
   exit 0
 fi
 python_cmd="${DECOMPOSER_PYTHON:-}"

@@ -24,3 +24,13 @@ jobs:
         run: |
           cp .env.example .env
           docker compose config --quiet
+      - name: Start through one-command deployment
+        run: |
+          ./deploy.sh --docker
+          curl --fail http://127.0.0.1:7860/healthz
+          curl --fail http://127.0.0.1:7860/ > /dev/null
+      - name: Container startup diagnostics
+        if: always()
+        run: |
+          docker compose logs --tail 80
+          docker compose down -v
