@@ -26,5 +26,14 @@ def test_repeated_text_elsewhere_or_different_claim_retained(box,text):
 def test_ambiguous_claim_not_deleted():
  rec,rep=fixture_duplicate();other=deepcopy(rec['objects'][1]);other['id']='other';rec['objects'].append(other);c=deepcopy(rep['components'][1]);c['label_id']='other';rep['components'].append(c);new,a=normalize_text_ownership(rec,rep);assert new==rep and a['ambiguous_retained']
 
-def test_font_environment_does_not_depend_on_shell_wrapper_layout(tmp_path):
- env,report=_libreoffice_font_environment('/fake/wrapper/soffice',tmp_path);assert report['configured'];assert 'Supplemental' in env['SAL_FONTPATH'];assert '<cachedir>' in (tmp_path/'fonts.conf').read_text()
+def test_font_environment_does_not_depend_on_shell_wrapper_layout(tmp_path, monkeypatch):
+    import os
+    from pathlib import Path
+    fonts = tmp_path / 'custom-fonts'
+    fonts.mkdir()
+    monkeypatch.setenv('DECOMPOSER_FONT_DIRS', str(fonts))
+    env, report = _libreoffice_font_environment('/fake/wrapper/soffice', tmp_path)
+    assert report['configured']
+    assert str(fonts) in env['SAL_FONTPATH'].split(os.pathsep)
+    assert all(Path(p).is_dir() for p in report['directories'])
+    assert '<cachedir>' in (tmp_path / 'fonts.conf').read_text()
