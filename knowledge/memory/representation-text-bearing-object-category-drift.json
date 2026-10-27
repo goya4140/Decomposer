@@ -1,0 +1,15 @@
+{
+  "schema_version": "decomposer.memory.v1",
+  "memory_id": "representation-text-bearing-object-category-drift",
+  "owner_stage": "representation",
+  "mechanism": "text-bearing-object-category-drift",
+  "status": "candidate_imported",
+  "evidence_ids": [
+    "95ec74d0f344305c0bd6e63a"
+  ],
+  "accepted_count": 1,
+  "rejected_count": 0,
+  "strategies": [
+    "For every non-equation object with nonempty Recognition text, preserve exact native editable text independent of object category; retain its non-text geometry."
+  ]
+}

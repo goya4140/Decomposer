@@ -1,0 +1,9 @@
+{
+  "evidence_id": "d137dd9f89273f806c21de65",
+  "accepted": null,
+  "owner_stage": "representation",
+  "mechanism": "raster-source-crop-mismatch",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 import unicodedata
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from .common import canonical_bbox, canonical_points, number, safe_id, style, unique_id, write_json
 from .model import fixture_or_model
@@ -69,11 +69,18 @@ def canonical_text_runs(raw: Any, source_text: str, base_style: dict[str, Any]) 
 def _crop_asset(
     image_path: Path, source_bbox: list[float], label_id: str, assets_dir: Path,
     source_candidate_id: str | None, source_basis: str | None,
+    native_text_exclusions: list[dict[str, Any]] | None = None,
+    asset_transforms: list[dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     with Image.open(image_path) as image:
         x, y, width, height = source_bbox
         bounds = [int(x), int(y), max(int(x + width + 0.999), int(x) + 1), max(int(y + height + 0.999), int(y) + 1)]
-        cropped = image.convert("RGBA").crop(bounds)
+        from .asset_transforms import transformed_crop
+        cropped = transformed_crop(image, source_bbox, asset_transforms or [])
+        for exclusion in native_text_exclusions or []:
+            ex,ey,ew,eh=exclusion["bbox"]
+            if exclusion.get("fill")!="#FFFFFF":raise ValueError("Unverified photo patch fill")
+            ImageDraw.Draw(cropped).rectangle([int(ex)-bounds[0],int(ey)-bounds[1],int(ex+ew)-bounds[0]-1,int(ey+eh)-bounds[1]-1],fill="white")
         asset_id = "asset-" + hashlib.sha256((label_id + repr(bounds)).encode()).hexdigest()[:16]
         assets_dir.mkdir(parents=True, exist_ok=True)
         path = assets_dir / f"{asset_id}.png"
@@ -83,6 +90,8 @@ def _crop_asset(
         "source_candidate_id": source_candidate_id,
         "source_basis": source_basis,
         "mode": "source_crop", "path": str(path.resolve()),
+        "native_text_exclusions": native_text_exclusions or [],
+        "asset_transforms": asset_transforms or [],
         "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
     }
 
@@ -164,10 +173,14 @@ def _primitive(raw: Any, index: int, size: tuple[float, float], used: set[str]) 
     if kind == "text":
         result["text"] = str(raw.get("text") or " ")
         runs = canonical_text_runs(raw.get("runs"), result["text"], result["style"])
+        if raw.get("runs") and not runs:
+            raise ValueError("Invalid native rich-text source identity; refusing literal fallback")
         if runs:
             result["runs"] = runs
     elif kind == "path":
         result["path"] = str(raw.get("path") or "")
+        if raw.get("coordinate_space") in {"primitive", "component"}:
+            result["coordinate_space"] = raw["coordinate_space"]
         result["fallback_kind"] = "rect"
         result["arrow_start"] = bool(raw.get("arrow_start", False))
         result["arrow_end"] = bool(raw.get("arrow_end", False))
@@ -203,6 +216,18 @@ def canonicalize(
         decision = decisions.get(obj["id"], {"decision": "native"})
         allow_raster = decision.get("decision") == "localized_raster" and isinstance(decision.get("approved_bbox"), list)
         candidate = supplied.get(obj["id"])
+        if candidate and candidate.get("group_only"):
+            from .representation_recipes import graph_members
+            members = graph_members(obj, recognition)
+            if not members or members != candidate.get("members"):
+                raise ValueError("Logical graph group lacks verified native children")
+            components.append({
+                "label_id": obj["id"], "category": obj["category"],
+                "width": obj["bbox"][2], "height": obj["bbox"][3],
+                "primitives": [], "primitive_order": [],
+                "group_only": True, "members": members,
+            })
+            continue
         if not candidate:
             candidate = _fallback_component(obj, allow_raster=allow_raster)
             repairs.append({"label_id": obj["id"], "action": "generated_fallback_component"})
@@ -303,6 +328,7 @@ def canonicalize(
                     asset_id, manifest = _crop_asset(
                         Path(image), decision["approved_bbox"], obj["id"], assets_dir,
                         decision.get("source_candidate_id"), decision.get("source_basis"),
+                        decision.get("native_text_exclusions"), decision.get("asset_transforms"),
                     )
                     assets[asset_id] = manifest
                     primitive.pop("asset_request", None)
@@ -351,6 +377,14 @@ def validate(data: dict[str, Any], recognition: dict[str, Any]) -> None:
     if actual != expected:
         raise AssertionError("representation must preserve recognition label order and identity")
     for component in data["components"]:
+        if component.get("group_only"):
+            from .representation_recipes import graph_members
+            owner = next(o for o in recognition["objects"] if o["id"] == component["label_id"])
+            if (component["primitives"] or component["primitive_order"]
+                    or not graph_members(owner, recognition)
+                    or component.get("members") != graph_members(owner, recognition)):
+                raise AssertionError("Invalid logical group coverage")
+            continue
         ids = [item["id"] for item in component["primitives"]]
         if not ids or len(ids) != len(set(ids)) or set(ids) != set(component["primitive_order"]):
             raise AssertionError(f"invalid canonical component {component['label_id']}")

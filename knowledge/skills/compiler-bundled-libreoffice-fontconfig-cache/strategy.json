@@ -1,0 +1,11 @@
+{
+  "skill_id": "compiler-bundled-libreoffice-fontconfig-cache",
+  "memory_id": "compiler-bundled-libreoffice-fontconfig-cache",
+  "status": "candidate_imported",
+  "instructions": [
+    "When rendering with the bundled LibreOfficeDev.app, pass its packaged FONTCONFIG_FILE and a per-render writable XDG_CACHE_HOME; keep CJK text native and validate the renderer environment before visual refinement."
+  ],
+  "evidence_ids": [
+    "670f7181116fd75f70122250"
+  ]
+}

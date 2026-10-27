@@ -188,9 +188,12 @@ def _custom_geometry(element: dict) -> ET.Element:
         subpaths = _path_commands(element.get("path", ""))
         viewbox = element.get("path_viewbox") or [0, 0, width, height]
     vx, vy, vw, vh = viewbox
-    for commands in subpaths:
+    for subpath_index, commands in enumerate(subpaths):
         closed = bool(commands and commands[-1][0] == "Z")
-        path = ET.SubElement(paths, f"{{{A}}}path", w=str(extent_x), h=str(extent_y), fill="norm" if closed else "none")
+        # A compound filled contour needs its inner loops in the same native
+        # path; separate paths fill the holes back in. Opt in explicitly.
+        if not element.get("compound_path") or subpath_index == 0:
+            path = ET.SubElement(paths, f"{{{A}}}path", w=str(extent_x), h=str(extent_y), fill="norm" if closed else "none")
         for item in commands:
             name, values = item[0], item[1:]
             if name in ("M", "L"):

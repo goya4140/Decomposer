@@ -1,0 +1,13 @@
+{
+  "evidence_id": "5ece4e12d8f32594a81769e0",
+  "accepted": true,
+  "owner_stage": "representation",
+  "mechanism": "matching-band-geometry-overexpansion",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.002038,
+    "local_edge_delta": 0.00641,
+    "global_pixel_delta": 0.000712
+  }
+}

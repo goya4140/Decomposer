@@ -1,0 +1,9 @@
+{
+  "evidence_id": "441b67e7de703613a917ea98",
+  "accepted": null,
+  "owner_stage": "recognition",
+  "mechanism": "missing-workflow-object-decomposition",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

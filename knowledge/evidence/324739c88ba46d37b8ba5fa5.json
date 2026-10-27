@@ -1,0 +1,13 @@
+{
+  "evidence_id": "324739c88ba46d37b8ba5fa5",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "trailing-newline-math-label-overflow",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.0,
+    "local_edge_delta": 0.0,
+    "global_pixel_delta": 0.0
+  }
+}

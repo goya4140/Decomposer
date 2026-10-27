@@ -1,0 +1,13 @@
+{
+  "evidence_id": "670f7181116fd75f70122250",
+  "accepted": true,
+  "owner_stage": "compiler",
+  "mechanism": "bundled-libreoffice-fontconfig-cache",
+  "round_id": "controlled-fontconfig-proof",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": -0.001958,
+    "local_edge_delta": 0.020784,
+    "global_pixel_delta": 2e-05
+  }
+}

@@ -13,6 +13,8 @@ from .assemble import assemble
 from .common import canonical_bbox, canonical_points, clamp, number, read_json, sha256, style, write_json
 from .knowledge import capture, link_evidence, refinement_guidance
 from .layout import validate as validate_layout
+from .refinement_context import bounded
+from .local_repair import RepairPreflightError, expand_text_owner, preflight, local_guard
 from .model import fixture_or_model
 from .polygons import _path_commands, normalize_numeric_path_words
 from .pptx import compile_scene
@@ -308,6 +310,9 @@ def apply_patch(recognition: dict[str, Any], representation: dict[str, Any], lay
     if owner not in prefixes and decision.get("operations"): raise ValueError(f"stage {owner} cannot carry a source patch")
     by_object = {item["id"]: item for item in recognition["objects"]}
     by_placement = {item["label_id"]: item for item in layout["placements"]}
+    bbox_owners = [(op['label_id'],op.get('primitive_id','')) for op in decision.get('operations',[]) if op['op']=='primitive_bbox']
+    if len(bbox_owners) != len(set(bbox_owners)):
+        raise RepairPreflightError("duplicate_bbox_operations_for_same_primitive")
     for operation in decision.get("operations", []):
         op, label_id = operation["op"], operation["label_id"]
         if label_id not in declared: raise ValueError(f"operation changes undeclared label {label_id}")
@@ -321,7 +326,23 @@ def apply_patch(recognition: dict[str, Any], representation: dict[str, Any], lay
             by_object[label_id]["connects"] = {"source_id": value["source_id"], "target_id": value["target_id"]}
         elif op.startswith("primitive_"):
             component, primitive = _find_primitive(representation, label_id, operation.get("primitive_id", ""))
-            if op == "primitive_bbox": primitive["bbox"] = canonical_bbox(operation.get("bbox"), (component["width"], component["height"]))
+            if op == "primitive_background":
+                if primitive['kind']!='text':raise ValueError('Background requires a text anchor')
+                pid=primitive['id']+'_background'
+                if any(p['id']==pid for p in component['primitives']):raise ValueError('Background exists')
+                bg={'id':pid,'kind':'rect','bbox':canonical_bbox(operation.get('bbox') or primitive['bbox'],(component['width'],component['height'])),'style':style({**operation.get('style',{}),'stroke':'none'}),'editable':True}
+                component['primitives'].insert(0,bg);component['primitive_order'].insert(0,pid)
+            elif op == "primitive_rounding":
+                if primitive['kind'] not in {'rect','round_rect'}:raise ValueError('Rounding requires rectangular shape')
+                from .fidelity_contracts import rounded_path
+                w,h=primitive['bbox'][2:];radius=float(operation.get('number',0))
+                if not 0<=radius<=min(w,h)/2:raise ValueError('Invalid radius')
+                primitive.update(kind='path',path=rounded_path(w,h,radius),coordinate_space='primitive',arrow_start=False,arrow_end=False)
+            elif op == "primitive_bbox":
+                if primitive["kind"] == "text" and sum(op.get("label_id")==label_id and op.get("op")=="primitive_bbox" for op in decision.get("operations",[]))>1:
+                    raise RepairPreflightError("text_owner_expansion_cannot_mix_group_bbox_operations")
+                if not expand_text_owner(component, primitive, by_placement[label_id], operation.get("bbox"), recognition["canvas"]):
+                    primitive["bbox"] = canonical_bbox(operation.get("bbox"), (component["width"], component["height"]))
             elif op == "primitive_points": primitive["points"] = canonical_points(operation.get("points"), (component["width"], component["height"]))
             elif op == "primitive_text": primitive["text"] = str(operation.get("text") or " ")
             elif op == "primitive_path":
@@ -356,7 +377,17 @@ def apply_patch(recognition: dict[str, Any], representation: dict[str, Any], lay
                         "primitive_kind is limited to bbox-native shapes"
                     )
                 primitive["kind"] = target_kind
-        elif op == "layout_bbox": by_placement[label_id]["bbox"] = canonical_bbox(operation.get("bbox"), (recognition["canvas"]["width"], recognition["canvas"]["height"]))
+        elif op == "layout_bbox":
+            # Validate the FINAL rotated visible extent below, after all ops.
+            # A legitimate quarter-turn box can have a negative unrotated x/y.
+            proposed = operation.get("bbox")
+            if not isinstance(proposed, (list, tuple)) or len(proposed) != 4:
+                raise ValueError("layout_bbox requires four finite coordinates")
+            import math
+            proposed = [float(v) for v in proposed]
+            if not all(math.isfinite(v) for v in proposed) or min(proposed[2:]) <= 0:
+                raise ValueError("layout_bbox requires finite coordinates and positive dimensions")
+            by_placement[label_id]["bbox"] = proposed
         elif op == "layout_rotation": by_placement[label_id]["rotation_deg"] = round(number(operation.get("number"), 0) % 360, 4)
         elif op == "layout_font_scale": by_placement[label_id]["font_scale"] = round(clamp(number(operation.get("number"), 1), .1, 10), 4)
         elif op in ("layout_front", "layout_back"):
@@ -406,7 +437,9 @@ def run(root: str | Path, image: str | Path, config: dict[str, Any], *, fixture_
             "provenance": read_json(output / "provenance.json"),
             "applicable_memories": guidance,
             "previous_attempts": history,
+            "executor_capabilities": {"primitive_background":"Add one separate native rect behind a text primitive; give bbox and fill, never text fill", "primitive_rounding":"Native rectangular shape to rounded path, number=radius in source pixels", "group_bbox":"Multiple distinct non-text primitive_bbox operations in same owner commit atomically; no owner expansion", "constraints":"Prefer unresolved unreadable text, missing structure, duplicate geometry and wrong directions. Font resource absence cannot be repaired by geometric operations. Keep memory/skill references and all local/neighbor gates."},
         }
+        payload = bounded(payload)
         prompt = (Path(__file__).parents[1] / "prompts" / "refinement.md").read_text()
         proposal, metadata = fixture_or_model("refinement", prompt, payload, REFINEMENT_SCHEMA, sheet, config, round_dir / "call", fixture_dir)
         if metadata.get("fallback_used") or not proposal:
@@ -419,6 +452,13 @@ def run(root: str | Path, image: str | Path, config: dict[str, Any], *, fixture_
             write_json(round_dir / "knowledge-trace.json", knowledge_use)
             history.append({"round": round_number, "accepted": None, "knowledge_use": knowledge_use})
             stop_reason = "diagnosis_failed"; break
+        allowed=set(payload['scope_policy']['selectable_owner_ids'])
+        requested=set(proposal.get('affected_label_ids',[])) | {op.get('label_id') for op in proposal.get('operations',[]) if op.get('label_id')}
+        if not requested <= allowed:
+            write_json(round_dir / 'scope-rejection.json', {'requested':sorted(requested),'allowed':sorted(allowed)})
+            write_json(round_dir / 'decision.json',proposal)
+            write_json(round_dir / 'knowledge-trace.json', {**_knowledge_use(proposal,guidance),'outcome':'scope_rejected'})
+            stop_reason='scope_rejected';break
         _canonical_mechanism(proposal)
         knowledge_use = _knowledge_use(proposal, guidance)
         if proposal.get("acceptable"):
@@ -515,17 +555,28 @@ def run(root: str | Path, image: str | Path, config: dict[str, Any], *, fixture_
             candidate_recognition, candidate_representation, candidate_layout = apply_patch(recognition, representation, layout, proposal)
             if _text_identity(recognition, representation) != _text_identity(candidate_recognition, candidate_representation):
                 raise ValueError("refinement patch changes canonical text content")
+            candidate_scene = assemble(candidate_recognition, candidate_representation, candidate_layout)
+            execution = preflight(current_scene, candidate_scene, proposal)
+            write_json(round_dir / "execution-preflight.json", execution)
+            evaluation_region = execution["region"]
+            evaluation_region_source = execution["region_source"]
             candidate_output = round_dir / "output"; candidate_output.mkdir(exist_ok=True)
             write_json(round_dir / "recognition" / "recognition.json", candidate_recognition)
             write_json(round_dir / "representation" / "representation.json", candidate_representation)
             write_json(round_dir / "layout" / "layout.json", candidate_layout)
-            candidate_scene = assemble(candidate_recognition, candidate_representation, candidate_layout)
             write_json(candidate_output / "scene.json", candidate_scene)
             compile_scene(candidate_output / "scene.json", candidate_output, config, True)
             build_provenance(candidate_scene, candidate_output / "editable.pptx", candidate_output)
             assessment = compare(image, before_preview, candidate_output / "preview.png", evaluation_region, float(settings.get("global_regression_tolerance", .002)))
             assessment["evaluation_region"] = evaluation_region
             assessment["evaluation_region_source"] = evaluation_region_source
+            assessment["execution_preflight"] = execution
+            local = local_guard(image, current_scene, before_preview, candidate_scene,
+                                candidate_output / "preview.png", execution)
+            assessment["local_repair_guard"] = local
+            if not local["passed"]:
+                assessment["accepted"] = False
+                assessment["rejection_reason"] = "local_text_or_neighbor_regression"
             visibility = _native_text_visibility_regression(
                 image, current_scene, before_preview, candidate_scene,
                 candidate_output / "preview.png", proposal.get("affected_label_ids", []),
@@ -550,7 +601,8 @@ def run(root: str | Path, image: str | Path, config: dict[str, Any], *, fixture_
             write_json(round_dir / "assessment.json", assessment)
         except Exception as exc:
             assessment = {"accepted": False, "error": f"{type(exc).__name__}: {exc}"}
-            assessment["rejection_reason"] = "patch_execution_or_validation_failed"
+            assessment["rejection_reason"] = str(exc).split(":", 1)[0] if isinstance(exc, RepairPreflightError) else "patch_execution_or_validation_failed"
+            assessment["render_skipped"] = isinstance(exc, RepairPreflightError)
         if not assessment["accepted"] and before_hashes is not None:
             assessment["canonical_after_hashes"] = {
                 "recognition": sha256(root / "recognition" / "recognition.json"),
@@ -587,7 +639,7 @@ def run(root: str | Path, image: str | Path, config: dict[str, Any], *, fixture_
             "knowledge_use": knowledge_use,
             "assessment": {
                 key: assessment.get(key)
-                for key in ("local_pixel_delta", "local_edge_delta", "global_pixel_delta", "rejection_reason", "native_text_visibility_guard")
+                for key in ("local_pixel_delta", "local_edge_delta", "global_pixel_delta", "rejection_reason", "native_text_visibility_guard", "local_repair_guard", "error", "render_skipped")
                 if key in assessment
             },
         })

@@ -7,3 +7,8 @@ The supplied evidence contains normalized SAM/OCR candidates plus deterministic 
 `applicable_memories`, when present, contains only measured downstreamed experience owned by this stage. Use relevant strategies to prevent known failure mechanisms, but never let memory override visible image evidence or invent content.
 
 Do not emit drawing primitives, PowerPoint shape names, layout instructions, JavaScript, or file paths. Incomplete observations are acceptable because deterministic code will canonicalize and complete the proposal.
+
+Editable object atomicity:
+- Directory trees, repository file lists, menus, and groups of icons connected by lines are composite diagrams. Keep separately positioned labels as separate text objects with their own observed bounds and candidate references. Preserve ordinary paragraphs and continuous code blocks as blocks.
+- Do not declare a strip containing multiple icons and native connectors a single image leaf. Reconstruct simple folder/document icons and branch lines as native shapes/paths. Only irreducible pictorial leaves may use image crops.
+- If an object should be native geometry, use shape/arrow/chart as appropriate rather than image; retain meaningful parent/leaf distinctions. Do not include independently recognized native text in the bounds of a proposed pictorial crop.

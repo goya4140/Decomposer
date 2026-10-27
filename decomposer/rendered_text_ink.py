@@ -41,7 +41,7 @@ def _light_chromatic_color(value: Any) -> np.ndarray | None:
         channels = np.array([int(raw[index:index + 2], 16) for index in (0, 2, 4)])
     except ValueError:
         return None
-    if float(channels.mean()) < DARK_MEAN_LIMIT or int(np.ptp(channels)) < 40:
+    if int(np.ptp(channels)) < 40:
         return None
     return channels
 

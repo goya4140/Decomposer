@@ -1,9 +1,0 @@
-{
-  "model": {
-    "backend": "codex-cli",
-    "command": "codex",
-    "name": "YOUR_AVAILABLE_VISION_MODEL",
-    "effort": "medium",
-    "timeout_seconds": 1800
-  }
-}

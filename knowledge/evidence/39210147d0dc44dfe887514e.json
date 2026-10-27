@@ -1,0 +1,9 @@
+{
+  "evidence_id": "39210147d0dc44dfe887514e",
+  "accepted": null,
+  "owner_stage": "compiler",
+  "mechanism": "path-bbox-offset-loss",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

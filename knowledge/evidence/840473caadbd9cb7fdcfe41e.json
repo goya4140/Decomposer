@@ -1,0 +1,13 @@
+{
+  "evidence_id": "840473caadbd9cb7fdcfe41e",
+  "accepted": false,
+  "owner_stage": "layout",
+  "mechanism": "math-label-text-scale-mismatch",
+  "round_id": "round-003",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.00054,
+    "local_edge_delta": -0.001669,
+    "global_pixel_delta": 5.3e-05
+  }
+}

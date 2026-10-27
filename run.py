@@ -1,40 +1,36 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
+"""Convert one scientific figure with the same runtime used by the web service."""
 import argparse
 import json
 from pathlib import Path
+import sys
+import uuid
 
-from decomposer.pipeline import execute
-
-
-def merge(base: dict, override: dict) -> dict:
-    """Recursively overlay a model/runtime profile without mutating the base config."""
-    result = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = merge(result[key], value)
-        else:
-            result[key] = value
-    return result
+from decomposer.engineering import execute
+from decomposer.settings import ROOT, load_config
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Decompose a scientific figure into JSON stages and compile an editable PPTX.")
-    parser.add_argument("--input", required=True, help="Source figure image")
-    parser.add_argument("--config", required=True, help="Runtime/model JSON config")
-    parser.add_argument("--model-profile", help="Optional model-only JSON profile overlaid on --config")
-    parser.add_argument("--out", required=True, help="Output run directory")
-    parser.add_argument("--fixture-dir", help="Optional recognition/representation/layout JSON proposals for offline runs")
-    parser.add_argument("--no-render", action="store_true", help="Compile and inspect PPTX without LibreOffice rendering")
-    parser.add_argument("--resume", action="store_true", help="Reuse validated completed canonical stages in the output directory")
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--input', required=True, type=Path)
+    parser.add_argument('--out', type=Path, default=None)
     args = parser.parse_args()
-    config = json.loads(Path(args.config).read_text())
-    if args.model_profile:
-        config = merge(config, json.loads(Path(args.model_profile).read_text()))
-    status = execute(args.input, args.out, config, fixture_dir=args.fixture_dir, render_output=not args.no_render, resume=args.resume)
-    print(json.dumps(status, ensure_ascii=False, indent=2))
+    try:
+        config = load_config()
+        image = args.input.resolve()
+        if not image.is_file():
+            raise ValueError('Input image does not exist')
+        out = (args.out or ROOT / 'data/jobs' / uuid.uuid4().hex).resolve()
+        if out.exists() and any(out.iterdir()):
+            raise ValueError('Output directory must be empty')
+        result = execute({'sample_id': out.name, 'input': str(image)}, out, config, ROOT / 'knowledge')
+    except (ValueError, OSError) as exc:
+        parser.exit(2, str(exc) + '\n')
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if result['status'] != 'complete':
+        sys.exit(1)
+    print('PPTX: ' + str(out / 'output/editable.pptx'))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

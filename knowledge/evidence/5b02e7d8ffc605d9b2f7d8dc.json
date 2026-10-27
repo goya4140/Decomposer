@@ -1,0 +1,13 @@
+{
+  "evidence_id": "5b02e7d8ffc605d9b2f7d8dc",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "ellipsis-glyph-metric-mismatch",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.000513,
+    "local_edge_delta": 0.001055,
+    "global_pixel_delta": 3.2e-05
+  }
+}

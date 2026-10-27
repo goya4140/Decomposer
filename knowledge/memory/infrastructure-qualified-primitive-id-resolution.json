@@ -1,0 +1,15 @@
+{
+  "schema_version": "decomposer.memory.v1",
+  "memory_id": "infrastructure-qualified-primitive-id-resolution",
+  "owner_stage": "infrastructure",
+  "mechanism": "qualified-primitive-id-resolution",
+  "status": "candidate_imported",
+  "evidence_ids": [
+    "791208e8820ab787b72b94b4"
+  ],
+  "accepted_count": 1,
+  "rejected_count": 0,
+  "strategies": [
+    "Resolve both local and label-qualified primitive IDs, and reject qualified IDs whose owner does not match the operation label."
+  ]
+}

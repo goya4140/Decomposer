@@ -1,0 +1,26 @@
+name: Deployment check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build deployment image
+        run: docker build -t decomposer:test .
+      - name: Check runtime and conversion
+        run: |
+          docker run --rm --user root \
+            -v "$PWD/tests:/app/tests:ro" \
+            --entrypoint sh decomposer:test \
+            -c 'pip install -r requirements-dev.txt && python -m pytest -q'
+      - name: Check Compose definition
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

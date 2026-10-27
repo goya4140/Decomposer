@@ -1,0 +1,1 @@
+Runtime candidate guidance for refinement only. The packaged seed contains strategies and compact measured outcomes; source figures, research logs and artifact references are excluded. These records are candidates, not attested proactive-generation rules. Each conversion uses its own writable copy, so jobs do not modify the seed or other jobs.

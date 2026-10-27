@@ -1,0 +1,13 @@
+{
+  "evidence_id": "220b8a954ed7094cf9650349",
+  "accepted": true,
+  "owner_stage": "representation",
+  "mechanism": "split-math-source-identity-loss",
+  "round_id": "075-source-contract-structural-success",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": -0.00461,
+    "local_edge_delta": 0.02962,
+    "global_pixel_delta": -0.000347
+  }
+}

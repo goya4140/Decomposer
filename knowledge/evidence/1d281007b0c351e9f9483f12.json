@@ -1,0 +1,9 @@
+{
+  "evidence_id": "1d281007b0c351e9f9483f12",
+  "accepted": null,
+  "owner_stage": "compiler",
+  "mechanism": "path-local-origin-translation-loss",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

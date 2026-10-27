@@ -1,0 +1,13 @@
+{
+  "evidence_id": "7d56b3a00340c77afb695b55",
+  "accepted": true,
+  "owner_stage": "representation",
+  "mechanism": "subscript-font-double-reduction",
+  "round_id": "round-002",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.001282,
+    "local_edge_delta": 0.012674,
+    "global_pixel_delta": 3.4e-05
+  }
+}

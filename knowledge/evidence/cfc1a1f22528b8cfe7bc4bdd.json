@@ -1,0 +1,13 @@
+{
+  "evidence_id": "cfc1a1f22528b8cfe7bc4bdd",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "multiline-baseline-spacing-compression",
+  "round_id": "round-003",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.0,
+    "local_edge_delta": 0.0,
+    "global_pixel_delta": 0.0
+  }
+}

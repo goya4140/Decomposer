@@ -1,0 +1,13 @@
+{
+  "evidence_id": "95ec74d0f344305c0bd6e63a",
+  "accepted": true,
+  "owner_stage": "representation",
+  "mechanism": "text-bearing-object-category-drift",
+  "round_id": "category-drift-structural-ablation-v0621",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": -0.04142,
+    "local_edge_delta": 0.002064,
+    "global_pixel_delta": -0.000346
+  }
+}

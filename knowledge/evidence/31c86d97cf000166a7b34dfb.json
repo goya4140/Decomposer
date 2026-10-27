@@ -1,0 +1,13 @@
+{
+  "evidence_id": "31c86d97cf000166a7b34dfb",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "separator-lines-overlap-heading",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": -0.000179,
+    "local_edge_delta": 0.000127,
+    "global_pixel_delta": -4.1e-05
+  }
+}

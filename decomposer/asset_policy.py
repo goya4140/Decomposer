@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .common import clamp, number, write_json
+from .atomic_objects import text_crop_conflicts
 
 
 DEFAULT_ROLES = {
@@ -67,6 +68,7 @@ def decide(
     for obj in recognition.get("objects", []):
         reasons: list[str] = []
         eligible: list[dict[str, Any]] = []
+        crop_conflicts = []
         strong_recognition_leaf = (
             obj.get("category") == "image"
             and obj.get("semantic_level") == "leaf"
@@ -101,6 +103,10 @@ def decide(
             ):
                 rejected_partial_sam = True
                 continue
+            conflicts = text_crop_conflicts(candidate["bbox"], recognition, obj["id"], evidence)
+            if conflicts:
+                crop_conflicts.extend(conflicts)
+                continue
             eligible.append(candidate)
         if rejected_partial_sam and not eligible:
             reasons.append("sam_insufficient_object_coverage")
@@ -123,12 +129,15 @@ def decide(
             area_ratio = _area(bbox) / canvas_area
             ocr_coverage = _ocr_coverage(bbox, candidates)
             confidence = number(obj.get("confidence"), 0.0)
+            conflicts = text_crop_conflicts(bbox, recognition, obj["id"], evidence)
+            crop_conflicts.extend(conflicts)
             if (
                 len(bbox) == 4
                 and area_ratio <= max_recognition_leaf_area_ratio
                 and ocr_coverage <= max_ocr_coverage
                 and confidence >= minimum_recognition_confidence
                 and not str(obj.get("text") or "").strip()
+                and not conflicts
             ):
                 decision = "localized_raster"
                 reasons.extend([
@@ -151,6 +160,8 @@ def decide(
             area_ratio = 0.0
             if obj.get("category") == "image" and not eligible:
                 reasons.append("no_eligible_sam_leaf")
+        if crop_conflicts:
+            reasons.append("crop_intersects_separate_native_text")
         decisions.append({
             "label_id": obj["id"],
             "decision": decision,
@@ -159,6 +170,7 @@ def decide(
             "approved_bbox": approved_bbox,
             "area_ratio": round(area_ratio, 6),
             "reason_codes": list(dict.fromkeys(reasons)),
+            "native_text_conflicts": crop_conflicts,
         })
     return {
         "schema_version": "decomposer.asset-decisions.v1",
@@ -187,4 +199,39 @@ def materialize(
 ) -> dict[str, Any]:
     result = decide(recognition, evidence, config)
     write_json(path, result)
+    return result
+
+
+def decide_with_photo_overlays(recognition, evidence, config, image_path):
+    """Admit small native labels only on verified white patches in photo leaves.
+    Nonwhite/large/unsupported overlaps keep the original rejection.
+    """
+    from PIL import Image
+    from .atomic_objects import is_photographic_leaf
+    result=decide(recognition,evidence,config)
+    objects={o['id']:o for o in recognition['objects']}
+    with Image.open(image_path) as original:
+        image=original.convert('RGB')
+        for decision in result['decisions']:
+            owner=objects[decision['label_id']]
+            if owner['category']!='image' or owner.get('semantic_level')!='leaf' or not is_photographic_leaf(owner):continue
+            if decision['decision']=='localized_raster':continue
+            conflicts=text_crop_conflicts(owner['bbox'],recognition,owner['id'],evidence)
+            if not conflicts:continue
+            x,y,w,h=owner['bbox'];area=w*h;exclusions=[]
+            for target_id in dict.fromkeys(c['owner_id'] for c in conflicts):
+                target=objects[target_id];a,b,c,d=target['bbox'];a=int(a)-2;b=int(b)-2;c=int(c)+4;d=int(d)+4
+                if a<x or b<y or a+c>x+w or b+d>y+h or c*d/area>.06:break
+                supported=any(z['owner_id']==target_id and z.get('evidence_id') for z in conflicts)
+                if not supported:break
+                border=[image.getpixel((i,j)) for i in range(a,a+c) for j in range(b,b+d) if i in (a,a+c-1) or j in (b,b+d-1)]
+                white=sum(min(pixel)>=240 for pixel in border)/len(border)
+                if white<.98:break
+                exclusions.append({'label_id':target_id,'bbox':[a,b,c,d],'fill':'#FFFFFF','white_border_ratio':white,'source_text':target['text']})
+            else:
+                if exclusions and sum(e['bbox'][2]*e['bbox'][3] for e in exclusions)/area<=.08 and area/(recognition['canvas']['width']*recognition['canvas']['height'])<=result['policy']['max_recognition_leaf_area_ratio']:
+                    decision.update(decision='localized_raster',approved_bbox=owner['bbox'],source_candidate_id='recognition:'+owner['id'],source_basis='recognition_bbox_with_verified_white_native_label_patches',area_ratio=round(area/(recognition['canvas']['width']*recognition['canvas']['height']),6),native_text_exclusions=exclusions,reason_codes=['photographic_leaf','cached_ocr_supported_native_label','verified_white_patch','native_label_removed_from_raster','below_area_limit'])
+    from .asset_transforms import augment_decisions
+    with Image.open(image_path) as source:
+        result=augment_decisions(result,recognition,evidence,source)
     return result

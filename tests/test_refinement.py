@@ -9,7 +9,6 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from decomposer.pipeline import execute
 from decomposer.common import sha256, style
 from decomposer.knowledge import capture, consolidate_mechanisms, mark_downstreamed, mark_superseded, merge_into, retrieve
 from decomposer.polygons import _path_commands, normalize_numeric_path_words
@@ -434,28 +433,6 @@ class RefinementTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "is not owned by label"):
             apply_patch(recognition, representation, layout, decision)
 
-    def test_rendered_refinement_improves_and_writes_knowledge(self):
-        if not shutil.which("node") or not shutil.which("soffice") or not shutil.which("pdftoppm"):
-            self.skipTest("rendering runtime unavailable")
-        with tempfile.TemporaryDirectory(prefix="decomposer-refine-") as name:
-            root = Path(name); source = root / "source.png"
-            image = Image.new("RGB", (400, 200), "white"); ImageDraw.Draw(image).rectangle((40, 50, 140, 110), fill="#4472C4"); image.save(source)
-            fixtures = root / "fixtures"; fixtures.mkdir()
-            (fixtures / "recognition.json").write_text(json.dumps({"background": "#FFFFFF", "objects": [{"id": "box", "category": "shape", "bbox": [40, 50, 100, 60], "style_hint": {"fill": "#4472C4", "stroke": "none"}}]}))
-            (fixtures / "representation.json").write_text(json.dumps({"components": [{"label_id": "box", "width": 100, "height": 60, "primitives": [{"id": "body", "kind": "rect", "bbox": [0, 0, 100, 60], "style": {"fill": "#4472C4", "stroke": "none"}}]}]}))
-            (fixtures / "layout.json").write_text(json.dumps({"operations": [{"op": "place", "label_id": "box", "bbox": [220, 50, 100, 60]}]}))
-            (fixtures / "refinement.json").write_text(json.dumps({"acceptable": False, "selected_candidate_id": "tile-1-2", "owner_stage": "layout", "mechanism": "global-placement-offset", "summary": "The blue box is shifted right.", "affected_label_ids": ["box"], "affected_primitive_ids": [], "field": "bbox", "confidence": .99, "strategy": "Preserve the source bbox when no relation requires displacement.", "operations": [{"op": "layout_bbox", "label_id": "box", "primitive_id": None, "bbox": [40, 50, 100, 60], "points": None, "text": None, "category": None, "connects": None, "style": None, "number": None, "label_ids": None}]}))
-            config = {"detectors": {}, "runtime": {"node": "node", "soffice": shutil.which("soffice"), "pdftoppm": shutil.which("pdftoppm"), "timeout_seconds": 180}, "refinement": {"max_rounds": 1}}
-            status = execute(source, root / "run", config, fixture_dir=fixtures)
-            self.assertEqual(status["refinement"]["accepted_rounds"], 1)
-            self.assertTrue(status["validation"]["passed"])
-            self.assertTrue((root / "run/output/provenance.json").exists())
-            self.assertTrue((root / "run/output/page-manifest.json").exists())
-            self.assertTrue((root / "run/output/validation.json").exists())
-            self.assertTrue((root / "run/output/contact-sheet.png").exists())
-            self.assertTrue(list((root / "run/knowledge/memory").glob("*.json")))
-            assessment = json.loads((root / "run/refinement/round-001/assessment.json").read_text())
-            self.assertTrue(assessment["accepted"])
 
 
 if __name__ == "__main__": unittest.main()

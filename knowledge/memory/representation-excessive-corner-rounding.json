@@ -1,0 +1,25 @@
+{
+  "schema_version": "decomposer.memory.v1",
+  "memory_id": "representation-excessive-corner-rounding",
+  "owner_stage": "representation",
+  "mechanism": "excessive-corner-rounding",
+  "status": "candidate_imported",
+  "evidence_ids": [
+    "8276db7fb97c70d4b4acbee6",
+    "d849f6d28050e4910be8ebcf",
+    "fc49d6e77d52bc0b52c0e2ba",
+    "4dc9bcf167243984c2aaca56",
+    "d3bbbbdd11979dcdcbb40ad7",
+    "c69b7c15308b97f4cd53af24",
+    "72c92a902da3ab7fa7151cbc"
+  ],
+  "accepted_count": 4,
+  "rejected_count": 3,
+  "strategies": [
+    "Match enclosure corner geometry to the reference instead of defaulting containers to rounded rectangles.",
+    "Match enclosure corner geometry to the reference; use a rectangle when default rounded-rectangle curvature substantially exceeds the visible corner radius.",
+    "Match enclosure corner geometry to the reference instead of applying default rounded rectangles to all modules.",
+    "Match container corner geometry to the reference; use rectangular primitives when corner rounding is negligible at output scale.",
+    "Match enclosure corner geometry to the reference; use a rectangle when default rounded-rectangle curvature substantially exceeds the visible corner radius, then validate the exported render."
+  ]
+}

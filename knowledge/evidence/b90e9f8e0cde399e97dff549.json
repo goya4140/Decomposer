@@ -1,0 +1,13 @@
+{
+  "evidence_id": "b90e9f8e0cde399e97dff549",
+  "accepted": true,
+  "owner_stage": "representation",
+  "mechanism": "literal-math-markup-in-text-primitive",
+  "round_id": "styled-text-runs-v0.5.6",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.002272,
+    "local_edge_delta": -0.00759,
+    "global_pixel_delta": 5.3e-05
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "evidence_id": "a88adb28b0b7c82de7b0aa64",
+  "accepted": false,
+  "owner_stage": "compiler",
+  "mechanism": "combining-math-hat-font-substitution",
+  "round_id": "075-cambria-font-probe-failed",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

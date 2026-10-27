@@ -1,0 +1,13 @@
+{
+  "evidence_id": "8517420294fd2d98affcc57b",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "axis-tick-label-placement-offset",
+  "round_id": "round-002",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.0,
+    "local_edge_delta": 0.0,
+    "global_pixel_delta": 0.0
+  }
+}

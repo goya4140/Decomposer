@@ -144,7 +144,9 @@ for (const id of scene.z_order) {
       if (hasRuns && !validRuns) throw new Error("styled text runs do not preserve source text identity");
       const textPayload = validRuns ? styledTextPayload(element.runs, style) : String(element.text || " ");
       const fontSizePt = Math.max(1, pt(style.font_size || 20));
-      const lineCount = String(element.text || "").replace(/\r\n?/g, "\n").split("\n").length;
+      const normalizedText = String(element.text || "").replace(/\r\n?/g, "\n");
+      const trailingBreak = /\n$/.test(normalizedText);
+      const lineCount = Math.max(1, normalizedText.replace(/\n+$/, "").split("\n").length);
       const requestedLineSpacing = Number.isFinite(style.line_spacing)
         ? (style.line_spacing <= 3
           ? Math.max(1, style.line_spacing * fontSizePt)
@@ -154,10 +156,11 @@ for (const id of scene.z_order) {
       // native text box forces LibreOffice's normAutofit to shrink multiline
       // owners nearly to invisibility. Preserve the requested spacing when it
       // fits; otherwise cap only the vertical advance, never the font size.
-      const unrotated = Math.abs((Number(element.rotation_deg || 0) % 180 + 180) % 180) < 0.01;
-      const availableAdvancePt = lineCount > 1 && unrotated
-        ? Math.max(1, (pt(element.bbox?.[3] || 0) - fontSizePt) / (lineCount - 1))
-        : requestedLineSpacing;
+      // OOXML reserves an advance for EACH paragraph, including a single line;
+      // the previous (height-font)/(n-1) formula could still exceed the frame.
+      // bbox is the native UNROTATED frame even when the shape is rotated.
+      // Its local height, not canvas orientation, bounds paragraph leading.
+      const availableAdvancePt = Math.max(1, pt(element.bbox?.[3] || 0) / lineCount);
       const lineSpacingPt = Math.min(requestedLineSpacing, availableAdvancePt);
       if (lineSpacingPt < requestedLineSpacing - 0.0001) {
         lineSpacingCaps.push({
@@ -185,7 +188,7 @@ for (const id of scene.z_order) {
         align: style.align || "center", valign: "top",
         lineSpacing: lineSpacingPt,
         margin: 0,
-        fit: "shrink",
+        fit: trailingBreak ? undefined : "shrink",
         transparency: style.color === "none" ? 100 : 0,
         ...(style.shadow ? { shadow: style.shadow } : {}),
       });

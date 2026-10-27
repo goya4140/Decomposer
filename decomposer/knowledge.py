@@ -358,6 +358,8 @@ def refinement_guidance(
         row = {
             "memory_id": memory_id,
             "skill_id": skill.get("skill_id") or memory_id,
+            "skill_instructions": list(skill.get("instructions", []))[:3],
+            "skill_sha256": __import__("hashlib").sha256(skill_path.read_bytes()).hexdigest() if skill_path.is_file() else None,
             "status": memory.get("status", "candidate"),
             "owner_stage": memory.get("owner_stage"),
             "mechanism": memory.get("mechanism"),

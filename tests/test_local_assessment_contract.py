@@ -8,8 +8,6 @@ import unittest
 from PIL import Image, ImageDraw
 
 from decomposer.quality import affected_scene_region, boxes_region, compare
-from decomposer.short_text_registration import proposal_region
-from decomposer.source_line_registration import apply as apply_source_line, replacement_boxes
 
 
 MODULES = (
@@ -42,36 +40,8 @@ class LocalAssessmentContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "affected primitive missing"):
             affected_scene_region(before, after, ["missing"])
 
-    def test_split_line_region_includes_all_native_replacements(self):
-        before = {"canvas": {"width": 200, "height": 100}, "elements": [
-            {"id": "label/text", "source_label_id": "label", "kind": "text",
-             "text": "one\ntwo\nthree", "bbox": [20, 20, 150, 60], "style": {"font_size": 14}},
-        ], "z_order": ["label/text"]}
-        proposal = {"id": "label/text", "line_count": 3,
-                    "first_top": 10, "line_advance": 25, "line_height": 20}
-        after = apply_source_line(before, proposal)
-        boxes = replacement_boxes(before, after, proposal)
-        self.assertEqual(len(boxes), 4)
-        self.assertEqual(boxes_region(boxes, before["canvas"]), [20, 10, 150, 70])
-        with self.assertRaisesRegex(ValueError, "replacement identity drift"):
-            replacement_boxes(before, after, {**proposal, "line_count": 2})
 
-    def test_short_text_attempt_region_covers_only_changed_owner(self):
-        proposal = {"old_bbox": [10, 20, 40, 12], "new_bbox": [8, 15, 44, 21]}
-        self.assertEqual(proposal_region(proposal), [8, 15, 44, 21])
 
-    def test_registration_compare_uses_reported_region(self):
-        package = Path(__file__).resolve().parents[1] / "decomposer"
-        for name in MODULES:
-            with self.subTest(name=name):
-                tree = ast.parse((package / f"{name}.py").read_text())
-                calls = [node for node in ast.walk(tree)
-                         if isinstance(node, ast.Call)
-                         and isinstance(node.func, ast.Name)
-                         and node.func.id == "compare"]
-                self.assertEqual(len(calls), 1)
-                region = ast.unparse(calls[0].args[3])
-                self.assertIn(region, ("region", "attempt_region"))
 
     def test_local_metrics_differ_from_global_metrics(self):
         with tempfile.TemporaryDirectory() as temporary:

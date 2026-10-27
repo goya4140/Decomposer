@@ -14,22 +14,26 @@ from .polygons import patch
 
 
 def _libreoffice_font_environment(soffice: str, temporary: Path) -> tuple[dict[str, str], dict]:
-    """Configure the bundled renderer so non-Latin system fonts are discoverable."""
+    """Explicit font discovery also works through the bundled shell wrapper."""
+    from xml.sax.saxutils import escape
     environment = os.environ.copy()
-    executable = Path(soffice).resolve()
-    bundled_config = executable.parent.parent / "Resources" / "fontconfig" / "fonts.conf"
-    if not bundled_config.exists():
+    directories = [Path(p).expanduser() for p in (*os.environ.get("DECOMPOSER_FONT_DIRS", "").split(os.pathsep),
+        "/System/Library/Fonts", "/System/Library/Fonts/Supplemental", "/Library/Fonts",
+        "~/Library/Fonts", "/usr/share/fonts", "/usr/local/share/fonts", "~/.local/share/fonts",
+    ) if p and Path(p).expanduser().is_dir()]
+    if not directories:
         return environment, {"mode": "system", "configured": False}
     cache = temporary / "fontconfig-cache"
     cache.mkdir(parents=True, exist_ok=True)
-    environment["FONTCONFIG_FILE"] = str(bundled_config)
-    environment["XDG_CACHE_HOME"] = str(cache)
-    return environment, {
-        "mode": "bundled-fontconfig",
-        "configured": True,
-        "config": str(bundled_config),
-        "cache": "isolated-writable",
-    }
+    config = temporary / "fonts.conf"
+    config.write_text('<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">'
+                      '<fontconfig>' + ''.join('<dir>'+escape(str(p))+'</dir>' for p in directories)
+                      + '<cachedir>'+escape(str(cache))+'</cachedir></fontconfig>')
+    environment.update(FONTCONFIG_FILE=str(config), FONTCONFIG_PATH=str(temporary), XDG_CACHE_HOME=str(cache),
+                       SAL_FONTPATH=os.pathsep.join(str(p) for p in directories))
+    return environment, {"mode": "explicit-system-fonts", "configured": True,
+                         "directories": [str(p) for p in directories], "cache": "isolated-writable",
+                         "wrapper_safe": True}
 
 
 def inspect_pptx(path: str | Path) -> dict:
@@ -77,6 +81,16 @@ def render(pptx: Path, preview: Path, canvas: tuple[int, int], runtime: dict) ->
             [pdftoppm, "-png", "-singlefile", "-scale-to-x", str(canvas[0]), "-scale-to-y", str(canvas[1]), str(pdf), str(temporary / "preview")],
             check=True, capture_output=True, timeout=runtime.get("timeout_seconds", 180),
         )
+        import re
+        actual_fonts = sorted(set(n.decode("ascii", errors="replace") for n in
+                                  re.findall(rb"/BaseFont\s*/([^\s/<>]+)", pdf.read_bytes())))
+        write_json(preview.parent / "render-font-audit.json", {
+            "font_environment": font_environment, "pdf_base_fonts": actual_fonts,
+            "verification": "Actual exported PDF BaseFont names; not only requested PPTX names.",
+        })
+        if runtime.get("retain_diagnostic_pdf"):
+            import shutil
+            shutil.copy2(pdf, preview.parent / "rendered.pdf")
         with Image.open(temporary / "preview.png") as image:
             if image.size != canvas:
                 raise ValueError(f"preview size mismatch: {image.size} != {canvas}")

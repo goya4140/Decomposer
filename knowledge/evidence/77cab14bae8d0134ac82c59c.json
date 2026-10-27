@@ -1,0 +1,11 @@
+{
+  "evidence_id": "77cab14bae8d0134ac82c59c",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "trailing-newline-in-short-math-label",
+  "round_id": "round-003",
+  "sample_id": "seed-example",
+  "assessment": {
+    "rejection_reason": "patch_execution_or_validation_failed"
+  }
+}

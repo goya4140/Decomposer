@@ -9,12 +9,16 @@ from .schemas import LAYOUT_PROPOSAL_SCHEMA
 
 
 def _rotation_hint(obj: dict[str, Any]) -> float:
+    """Normalize only explicit reading directions; aspect ratio alone is ambiguous."""
     hint = str(obj.get("geometry_hint") or "").casefold()
-    if "rotat" not in hint:
-        return 0.0
-    if "counterclockwise" in hint or "counter-clockwise" in hint or "anticlockwise" in hint:
+    if any(word in hint for word in ("counterclockwise", "counter-clockwise", "anticlockwise", "270")):
         return 270.0
-    if "clockwise" in hint or "90" in hint:
+    if any(word in hint for word in ("clockwise", "90 degrees", "90°")):
+        return 90.0
+    vertical = any(word in hint for word in ("vertical", "rotat", "竖排", "旋转"))
+    if vertical and any(word in hint for word in ("reading upward", "reads upward", "bottom to top", "bottom-to-top", "向上")):
+        return 270.0
+    if vertical and any(word in hint for word in ("reading downward", "reads downward", "top to bottom", "top-to-bottom", "向下")):
         return 90.0
     return 0.0
 
@@ -115,13 +119,46 @@ def canonicalize(raw: Any, recognition: dict[str, Any], representation: dict[str
         for item in placements.values():
             item["visible"] = True
         repairs.append({"action": "restored_visibility_after_all_components_hidden"})
+    # An independently recognized visible label must be above its containing
+    # filled background owner. Preserve order of every non-text owner and all
+    # internal primitive orders; do not globally front every text element.
+    by_object = {o["id"]: o for o in recognition["objects"]}
+    by_component = {c["label_id"]: c for c in representation["components"]}
+    constraints = []
+    for label in list(order):
+        obj = by_object[label]
+        if obj["category"] not in {"text", "equation"} or not str(obj.get("text") or "").strip():
+            continue
+        x,y,w,h = placements[label]["bbox"]
+        behind = []
+        for other in order:
+            c = by_component[other]
+            if other == label or c["category"] not in {"shape", "chart"}:
+                continue
+            a,b,cw,ch = placements[other]["bbox"]
+            coverage = max(0,min(x+w,a+cw)-max(x,a))*max(0,min(y+h,b+ch)-max(y,b))/max(1,w*h)
+            hint=by_object[other].get("geometry_hint","").lower()
+            behind_highlight="highlight" in hint and "behind" in hint and coverage>0
+            if coverage < .95 and not behind_highlight:
+                continue
+            if not any(p["kind"] in {"rect","round_rect","ellipse","polygon","path"}
+                       and p.get("style",{}).get("fill","none") != "none" for p in c["primitives"]):
+                continue
+            behind.append(other)
+        if behind:
+            last = max(order.index(v) for v in behind)
+            if last > order.index(label):
+                order.remove(label);last = max(order.index(v) for v in behind);order.insert(last+1,label)
+                constraints.append({"text_owner":label,"background_owners":behind})
+    from .render_contracts import occlusion_order
+    order, occlusions = occlusion_order(recognition, order, representation)
     result = {
         "schema_version": "decomposer.layout.v1",
         "placements": [placements[label_id] for label_id in base["component_order"]],
         "component_order": order,
         "degraded": bool(repairs),
     }
-    report = {"operation_count": len(operations), "applied_count": applied, "repair_count": len(repairs), "repairs": repairs}
+    report = {"operation_count": len(operations), "applied_count": applied, "repair_count": len(repairs), "repairs": repairs, "native_text_layer_constraints": constraints, "explicit_occlusion_constraints": occlusions}
     validate(result, representation, recognition)
     return result, report
 

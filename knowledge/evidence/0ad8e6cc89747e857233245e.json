@@ -1,0 +1,9 @@
+{
+  "evidence_id": "0ad8e6cc89747e857233245e",
+  "accepted": null,
+  "owner_stage": "recognition",
+  "mechanism": "repeated-semantic-instance-omission",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

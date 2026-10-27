@@ -1,9 +1,13 @@
 {
-  "name": "decomposer-framework",
+  "name": "decomposer",
   "private": true,
   "type": "module",
   "dependencies": {
     "pptxgenjs": "4.0.1"
   },
-  "license": "Apache-2.0"
+  "version": "1.2.0",
+  "description": "Scientific figures to editable PowerPoint",
+  "engines": {
+    "node": ">=20"
+  }
 }

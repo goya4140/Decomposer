@@ -1,0 +1,12 @@
+{
+  "skill_id": "representation-split-math-source-identity-loss",
+  "memory_id": "representation-split-math-source-identity-loss",
+  "status": "candidate_imported",
+  "instructions": [
+    "For a native math owner, validate the concatenation of all run source_text fragments against exact recognized text. Only when it forms an exact partition, normalize each op text to its own run-source fragment; retain geometry, glyphs and styles. Reject missing, duplicated or conflicting source claims with owner IDs for bounded repair, and never silently discard invalid runs. This structural fix does not prove font fidelity or correct hat rendering."
+  ],
+  "evidence_ids": [
+    "1cb448b7d3b279a0cd487288",
+    "220b8a954ed7094cf9650349"
+  ]
+}

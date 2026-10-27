@@ -1,0 +1,9 @@
+{
+  "evidence_id": "770c901c54f0288dc5be0d43",
+  "accepted": null,
+  "owner_stage": "recognition",
+  "mechanism": "workflow-child-object-omission",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

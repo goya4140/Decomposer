@@ -1,0 +1,9 @@
+{
+  "evidence_id": "ee9555ae0244ae7a3bca0ec2",
+  "accepted": false,
+  "owner_stage": "recognition",
+  "mechanism": "text-punctuation-omission",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

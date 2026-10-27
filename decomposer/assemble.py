@@ -63,7 +63,8 @@ def assemble(recognition: dict[str, Any], representation: dict[str, Any], layout
                 element["asset_id"] = primitive["asset_id"]
             elif primitive["kind"] == "path":
                 element["path"] = primitive.get("path", "")
-                element["path_viewbox"] = primitive["bbox"]
+                element["path_viewbox"] = ([0, 0, primitive["bbox"][2], primitive["bbox"][3]]
+                                           if primitive.get("coordinate_space") == "primitive" else primitive["bbox"])
                 element["fallback_kind"] = primitive.get("fallback_kind", "rect")
                 element["arrow_start"] = primitive.get("arrow_start", False)
                 element["arrow_end"] = primitive.get("arrow_end", False)
@@ -76,6 +77,10 @@ def assemble(recognition: dict[str, Any], representation: dict[str, Any], layout
         "elements": elements,
         "z_order": z_order,
         "assets": representation["assets"],
+        "semantic_groups": {
+            component["label_id"]: component["members"]
+            for component in representation["components"] if component.get("group_only")
+        },
         "degraded": recognition["degraded"] or representation["degraded"] or layout["degraded"],
     }
     validate(scene)

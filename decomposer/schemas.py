@@ -116,7 +116,7 @@ REFINEMENT_OPERATION_SCHEMA = object_schema({
     "op": {"enum": [
         "recognition_bbox", "recognition_text", "recognition_category", "recognition_connects",
         "primitive_bbox", "primitive_points", "primitive_text", "primitive_style", "primitive_kind", "primitive_arrowheads",
-        "primitive_text_runs", "primitive_path",
+        "primitive_text_runs", "primitive_path", "primitive_background", "primitive_rounding",
         "layout_bbox", "layout_rotation", "layout_font_scale", "layout_front", "layout_back",
     ]},
     "label_id": {"type": "string"},

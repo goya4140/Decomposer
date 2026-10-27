@@ -1,0 +1,9 @@
+{
+  "evidence_id": "5a9f7f8fbd6bd89a56ee2690",
+  "accepted": null,
+  "owner_stage": "compiler",
+  "mechanism": "rich-text-rendering-loss",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

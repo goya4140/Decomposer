@@ -1,0 +1,9 @@
+{
+  "evidence_id": "04ce4613948593b9f552baa7",
+  "accepted": null,
+  "owner_stage": "compiler",
+  "mechanism": "path-local-offset-dropped",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

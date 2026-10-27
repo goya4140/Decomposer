@@ -1,0 +1,11 @@
+{
+  "skill_id": "representation-text-bearing-object-category-drift",
+  "memory_id": "representation-text-bearing-object-category-drift",
+  "status": "candidate_imported",
+  "instructions": [
+    "For every non-equation object with nonempty Recognition text, preserve exact native editable text independent of object category; retain its non-text geometry."
+  ],
+  "evidence_ids": [
+    "95ec74d0f344305c0bd6e63a"
+  ]
+}

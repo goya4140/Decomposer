@@ -1,0 +1,13 @@
+{
+  "evidence_id": "2d9b2e77aceeadade09e5f6d",
+  "accepted": true,
+  "owner_stage": "compiler",
+  "mechanism": "generic-font-family-resolution",
+  "round_id": "compiler-recovery-font-001",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": -0.001465,
+    "local_edge_delta": 0.02078,
+    "global_pixel_delta": -0.001091
+  }
+}

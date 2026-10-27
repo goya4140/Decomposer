@@ -1,0 +1,9 @@
+{
+  "evidence_id": "2ae261c7aed502b48972f4dd",
+  "accepted": null,
+  "owner_stage": "compiler",
+  "mechanism": "text-coordinate-export-mismatch",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

@@ -1,0 +1,13 @@
+{
+  "evidence_id": "dc77af5e8f6783e441bbc0a5",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "chart-lines-misclassified-as-arrows",
+  "round_id": "round-003",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 2.4e-05,
+    "local_edge_delta": -0.000128,
+    "global_pixel_delta": 2e-06
+  }
+}

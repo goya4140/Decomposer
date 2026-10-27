@@ -1,0 +1,11 @@
+{
+  "skill_id": "layout-explicit-text-rotation-hint",
+  "memory_id": "layout-explicit-text-rotation-hint",
+  "status": "candidate_imported",
+  "instructions": [
+    "Preserve explicit 90/270-degree source orientation as editable OOXML text rotation; do not infer an angle from an ambiguous vertical box alone."
+  ],
+  "evidence_ids": [
+    "b5a3db0824dcfaa5ad440034"
+  ]
+}

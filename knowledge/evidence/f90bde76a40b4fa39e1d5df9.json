@@ -1,0 +1,13 @@
+{
+  "evidence_id": "f90bde76a40b4fa39e1d5df9",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "trailing-paragraph-text-clipping",
+  "round_id": "round-002",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.0,
+    "local_edge_delta": 0.0,
+    "global_pixel_delta": 0.0
+  }
+}

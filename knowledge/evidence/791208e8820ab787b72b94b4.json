@@ -1,0 +1,13 @@
+{
+  "evidence_id": "791208e8820ab787b72b94b4",
+  "accepted": true,
+  "owner_stage": "infrastructure",
+  "mechanism": "qualified-primitive-id-resolution",
+  "round_id": "executor-qualified-id-fix",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.002763,
+    "local_edge_delta": 0.023486,
+    "global_pixel_delta": 0.000307
+  }
+}

@@ -190,6 +190,115 @@ def _manifest(root: Path, image: Path, recognition: dict, representation: dict, 
     }
 
 
+def _covered_logical_groups(recognition, representation, layout, scene):
+    """Nonpainting groups are covered only through all their visible painted members."""
+    objects = {item["id"]: item for item in recognition["objects"]}
+    visible = {item["label_id"] for item in layout["placements"] if item["visible"]}
+    painted = {item["source_label_id"] for item in scene["elements"]}
+    pending = {item["label_id"]: item for item in representation["components"]
+               if item.get("group_only") is True}
+    covered = set()
+    for _ in range(len(pending)):
+        added = set()
+        for label, component in pending.items():
+            owner = objects.get(label, {})
+            members = component.get("members", [])
+            if (label in visible and label not in painted and not component.get("primitives")
+                    and owner.get("semantic_level") == "container" and not str(owner.get("text") or "").strip()
+                    and members and len(members) == len(set(members)) and label not in members
+                    and set(members) <= visible and set(members) <= painted | covered):
+                added.add(label)
+        if not added - covered:
+            break
+        covered |= added
+    return covered
+
+
+def _grounded_asset(asset, recognition, layout, scene, image, config):
+    """Replay the approved transform and require exact pixels plus native label replacement."""
+    if not asset.get("source_candidate_id") or asset.get("mode") != "source_crop":
+        return False
+    if asset.get("source_basis") == "observed_atomic_activation_field":
+        from .fidelity_contracts import verify_activation_asset
+        return verify_activation_asset(asset,recognition,layout,scene,image)
+    if asset.get("source_basis") == "observed_atomic_visible_photo":
+        from .render_contracts import verify_atomic_asset
+        return verify_atomic_asset(asset, recognition, layout, scene, image, config)
+    if asset.get("source_basis") in {"sam_candidate", "recognition_bbox"}:
+        return True
+    if asset.get("source_basis") == "recognition_atomic_photo_with_owned_overlays":
+        try:
+            from .asset_policy import decide_with_photo_overlays
+            from .asset_transforms import transformed_crop
+            path=Path(asset["path"])
+            source_root=next((p for p in path.parents if (p/"input-normalized.png").is_file()
+                              and (p/"observations/evidence-ir.json").is_file()
+                              and sha256(p/"input-normalized.png")==sha256(image)),None)
+            if source_root is None or sha256(path)!=asset.get("sha256"):return False
+            replay=decide_with_photo_overlays(recognition,read_json(source_root/"observations/evidence-ir.json"),config,image)
+            approved=next((d for d in replay["decisions"] if d["label_id"]==asset["source_label_id"]),{})
+            if any(approved.get(k)!=asset.get(v) for k,v in [("source_basis","source_basis"),("source_candidate_id","source_candidate_id"),("approved_bbox","source_bbox"),("asset_transforms","asset_transforms")]):return False
+            if approved.get("decision")!="localized_raster" or not approved.get("asset_transforms"):return False
+            replacements={t["label_id"] for t in asset["asset_transforms"]}
+            painted={e["source_label_id"] for e in scene["elements"] if e.get("editable") or e["kind"]=="image" and e.get("asset_id") in scene["assets"]}
+            visible={p["label_id"] for p in layout["placements"] if p["visible"]}
+            if not replacements<=painted&visible:return False
+            image_indices=[i for i,e in enumerate(scene["elements"]) if e.get("asset_id") and scene["assets"].get(e["asset_id"],{}).get("source_label_id")==asset["source_label_id"]]
+            for label in replacements:
+                if image_indices and min(i for i,e in enumerate(scene["elements"]) if e["source_label_id"]==label)<=max(image_indices):return False
+            with Image.open(image) as original,Image.open(path) as actual:
+                expected=transformed_crop(original,asset["source_bbox"],asset["asset_transforms"])
+                return expected.size==actual.size and expected.tobytes()==actual.convert("RGBA").tobytes()
+        except (OSError,ValueError,TypeError,KeyError,StopIteration):return False
+    if asset.get("source_basis") != "recognition_bbox_with_verified_white_native_label_patches":
+        return False
+    try:
+        from .asset_policy import decide_with_photo_overlays
+        path = Path(asset["path"])
+        if path.parent.name != "assets" or path.parent.parent.name != "representation":
+            return False
+        source_root = next((parent for parent in path.parents
+                            if (parent / "input-normalized.png").is_file()
+                            and (parent / "observations" / "evidence-ir.json").is_file()
+                            and sha256(parent / "input-normalized.png") == sha256(image)), None)
+        if sha256(path) != asset.get("sha256") or source_root is None:
+            return False
+        evidence = read_json(source_root / "observations" / "evidence-ir.json")
+        replay = decide_with_photo_overlays(recognition, evidence, config, image)
+        approved = next((item for item in replay["decisions"] if item["label_id"] == asset["source_label_id"]), {})
+        if (approved.get("decision") != "localized_raster" or approved.get("source_basis") != asset["source_basis"]
+                or approved.get("source_candidate_id") != asset["source_candidate_id"]
+                or approved.get("approved_bbox") != asset.get("source_bbox")
+                or approved.get("native_text_exclusions") != asset.get("native_text_exclusions")
+                or not asset.get("native_text_exclusions")):
+            return False
+        native_labels = {item["source_label_id"] for item in scene["elements"]
+                         if item["kind"] == "text" and item.get("editable")}
+        visible = {item["label_id"] for item in layout["placements"] if item["visible"]}
+        exclusions = asset["native_text_exclusions"]
+        if not {item["label_id"] for item in exclusions} <= native_labels & visible:
+            return False
+        x, y, w, h = asset["source_bbox"]
+        bounds = [int(x), int(y), max(int(x + w + .999), int(x) + 1), max(int(y + h + .999), int(y) + 1)]
+        with Image.open(image) as original, Image.open(path) as actual:
+            source = original.convert("RGBA")
+            expected = source.crop(bounds)
+            for exclusion in exclusions:
+                a, b, c, d = exclusion["bbox"]
+                if exclusion.get("fill") != "#FFFFFF" or a < x or b < y or a+c > x+w or b+d > y+h or c*d/(w*h) > .06:
+                    return False
+                border = [source.getpixel((i,j))[:3] for i in range(a,a+c) for j in range(b,b+d)
+                          if i in (a,a+c-1) or j in (b,b+d-1)]
+                if not border or sum(min(pixel) >= 240 for pixel in border)/len(border) < .98:
+                    return False
+                ImageDraw.Draw(expected).rectangle([a-bounds[0], b-bounds[1], a+c-bounds[0]-1, b+d-bounds[1]-1], fill="white")
+            if sum(e["bbox"][2]*e["bbox"][3] for e in exclusions)/(w*h) > .08:
+                return False
+            return expected.size == actual.size and expected.tobytes() == actual.convert("RGBA").tobytes()
+    except (OSError, ValueError, TypeError, KeyError, IndexError, ZeroDivisionError):
+        return False
+
+
 def validate_run(root: str | Path, image: str | Path, config: dict[str, Any]) -> dict[str, Any]:
     root, image = Path(root), Path(image)
     output = root / "output"
@@ -249,8 +358,11 @@ def validate_run(root: str | Path, image: str | Path, config: dict[str, Any]) ->
 
     visible = {item["label_id"] for item in layout["placements"] if item["visible"]}
     scene_labels = {item["source_label_id"] for item in scene["elements"]}
-    check("visible_label_coverage", visible == scene_labels, code="visible-label-missing-from-scene", owner_stage="representation",
-          label_ids=sorted(visible - scene_labels), detail={"visible": len(visible), "scene": len(scene_labels)})
+    logical_groups = _covered_logical_groups(recognition, representation, layout, scene)
+    covered_labels = scene_labels | logical_groups
+    check("visible_label_coverage", visible == covered_labels, code="visible-label-missing-from-scene", owner_stage="representation",
+          label_ids=sorted(visible - covered_labels), detail={"visible": len(visible), "scene": len(scene_labels),
+                                                          "logical_groups": sorted(logical_groups)})
 
     missing_text = _editable_text_mismatches(recognition, scene)
     check("editable_text_coverage", not missing_text, code="editable-text-coverage-mismatch", owner_stage="representation",
@@ -269,9 +381,8 @@ def validate_run(root: str | Path, image: str | Path, config: dict[str, Any]) ->
 
     ungrounded_assets = [
         item for item in manifest["asset_provenance"]
-        if not item.get("source_candidate_id")
-        or item.get("source_basis") not in {"sam_candidate", "recognition_bbox"}
-        or item.get("mode") != "source_crop"
+        if not _grounded_asset(representation["assets"].get(item["asset_id"], {}),
+                               recognition, layout, scene, image, config)
     ]
     check("asset_provenance", not ungrounded_assets, code="ungrounded-raster-asset", owner_stage="representation",
           label_ids=sorted({item.get("source_label_id") for item in ungrounded_assets if item.get("source_label_id")}), detail=ungrounded_assets)

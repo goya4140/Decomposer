@@ -1,0 +1,9 @@
+{
+  "evidence_id": "ad08fdc4ee92926bd969823d",
+  "accepted": null,
+  "owner_stage": "unresolved",
+  "mechanism": "dotted-border-rendering-mismatch",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

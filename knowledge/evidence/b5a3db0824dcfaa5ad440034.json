@@ -1,0 +1,13 @@
+{
+  "evidence_id": "b5a3db0824dcfaa5ad440034",
+  "accepted": true,
+  "owner_stage": "layout",
+  "mechanism": "explicit-text-rotation-hint",
+  "round_id": "rotation-ablation-v0621",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.001764,
+    "local_edge_delta": 0.010909,
+    "global_pixel_delta": 0.000747
+  }
+}

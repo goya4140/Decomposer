@@ -1,0 +1,15 @@
+{
+  "schema_version": "decomposer.memory.v1",
+  "memory_id": "layout-explicit-text-rotation-hint",
+  "owner_stage": "layout",
+  "mechanism": "explicit-text-rotation-hint",
+  "status": "candidate_imported",
+  "evidence_ids": [
+    "b5a3db0824dcfaa5ad440034"
+  ],
+  "accepted_count": 1,
+  "rejected_count": 0,
+  "strategies": [
+    "Preserve explicit 90/270-degree source orientation as editable OOXML text rotation; do not infer an angle from an ambiguous vertical box alone."
+  ]
+}

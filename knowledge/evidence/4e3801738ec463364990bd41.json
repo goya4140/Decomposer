@@ -1,0 +1,9 @@
+{
+  "evidence_id": "4e3801738ec463364990bd41",
+  "accepted": null,
+  "owner_stage": "unresolved",
+  "mechanism": "text-scale-disagreement",
+  "round_id": "round-002",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

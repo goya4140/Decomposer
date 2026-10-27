@@ -1,3 +1,2 @@
-"""Decomposer: JSON-only figure decomposition and deterministic PPTX compilation."""
-
-VERSION = "1.1.0-refinement-memory"
+"""Decomposer runtime."""
+VERSION = "1.2.0-deploy.1"

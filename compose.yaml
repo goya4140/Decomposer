@@ -1,0 +1,18 @@
+services:
+  decomposer:
+    build: .
+    init: true
+    ports:
+      - "127.0.0.1:7860:7860"
+    env_file: .env
+    environment:
+      DECOMPOSER_HOST: 0.0.0.0
+      DECOMPOSER_PORT: "7860"
+      # Container is reachable only through the localhost-bound port above.
+      DECOMPOSER_CONTAINER_LOCAL_ONLY: "1"
+    volumes:
+      - decomposer-data:/app/data
+    restart: unless-stopped
+    stop_grace_period: 60s
+volumes:
+  decomposer-data:

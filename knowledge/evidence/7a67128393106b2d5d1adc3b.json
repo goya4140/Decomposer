@@ -1,0 +1,13 @@
+{
+  "evidence_id": "7a67128393106b2d5d1adc3b",
+  "accepted": false,
+  "owner_stage": "recognition",
+  "mechanism": "source-bbox-truncates-highlight",
+  "round_id": "round-002",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.0,
+    "local_edge_delta": 0.0,
+    "global_pixel_delta": 0.0
+  }
+}

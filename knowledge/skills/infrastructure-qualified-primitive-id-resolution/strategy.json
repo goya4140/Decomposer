@@ -1,0 +1,11 @@
+{
+  "skill_id": "infrastructure-qualified-primitive-id-resolution",
+  "memory_id": "infrastructure-qualified-primitive-id-resolution",
+  "status": "candidate_imported",
+  "instructions": [
+    "Resolve both local and label-qualified primitive IDs, and reject qualified IDs whose owner does not match the operation label."
+  ],
+  "evidence_ids": [
+    "791208e8820ab787b72b94b4"
+  ]
+}

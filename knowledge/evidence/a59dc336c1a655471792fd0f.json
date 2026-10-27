@@ -1,0 +1,13 @@
+{
+  "evidence_id": "a59dc336c1a655471792fd0f",
+  "accepted": true,
+  "owner_stage": "representation",
+  "mechanism": "cropped-asset-bounds-expansion",
+  "round_id": "round-003",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.052687,
+    "local_edge_delta": 0.346425,
+    "global_pixel_delta": 0.004501
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "evidence_id": "a21488f7d6d38dd6d0072591",
+  "accepted": true,
+  "owner_stage": "layout",
+  "mechanism": "foreground-background-order-inversion",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.003248,
+    "local_edge_delta": 0.004893,
+    "global_pixel_delta": 0.000203
+  }
+}

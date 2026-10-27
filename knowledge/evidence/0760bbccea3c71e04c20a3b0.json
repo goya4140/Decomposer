@@ -1,0 +1,13 @@
+{
+  "evidence_id": "0760bbccea3c71e04c20a3b0",
+  "accepted": true,
+  "owner_stage": "representation",
+  "mechanism": "excessive-panel-corner-rounding",
+  "round_id": "round-002",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 0.001349,
+    "local_edge_delta": -0.003897,
+    "global_pixel_delta": 0.000147
+  }
+}

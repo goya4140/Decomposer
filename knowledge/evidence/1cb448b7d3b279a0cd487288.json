@@ -1,0 +1,9 @@
+{
+  "evidence_id": "1cb448b7d3b279a0cd487288",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "split-math-source-identity-loss",
+  "round_id": "075-source-contract-failure",
+  "sample_id": "seed-example",
+  "assessment": {}
+}

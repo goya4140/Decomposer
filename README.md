@@ -1,361 +1,125 @@
 # Decomposer
 
-Decomposer converts a scientific figure into an **editable, single-slide PowerPoint presentation**. Vision models describe the figure through structured JSON; deterministic code assembles the scene, writes native PowerPoint objects, and checks the exported file. Rendered runs can also refine and calibrate the native objects through measured, reversible changes.
+把科研图片重建成**可编辑的单页 PowerPoint**。配置视觉模型 API 后，一条命令启动，浏览器上传图片即可下载 PPTX 和预览。
 
-The repository contains the framework, prompts, schemas, adapters, configuration templates, and synthetic development examples. It contains no research datasets, annotations, model weights, historical knowledge snapshots, experimental outputs, or evaluation results.
+## 快速部署（推荐 Docker）
 
-## Contents
-
-- [Architecture](#architecture)
-- [Repository layout](#repository-layout)
-- [Installation](#installation)
-- [Quick start without a model](#quick-start-without-a-model)
-- [Configure a real run](#configure-a-real-run)
-- [Run on your own figure](#run-on-your-own-figure)
-- [Outputs and run status](#outputs-and-run-status)
-- [Troubleshooting](#troubleshooting)
-- [Development](#development)
-- [License](#license)
-
-## Architecture
-
-The generation pipeline separates **what an object is**, **how it is represented**, and **where it is placed**. Each stage has a defined ownership boundary; models propose JSON while the framework owns execution and serialization.
-
-```mermaid
-flowchart TD
-    A[Source figure] --> B[Normalization and optional OCR / SAM]
-    B --> C[Evidence IR]
-    C --> D[Recognition: objects, text, relationships]
-    D --> E[Localized raster authorization]
-    E --> F[Representation: component-local primitives]
-    F --> G[Layout: global placement and order]
-    G --> H[Deterministic scene assembly]
-    H --> I[Native PPTX compilation]
-    I --> J[Rendering, provenance and validation]
-    J --> K[Bounded refinement: accept or roll back]
-    K --> L[Measured native-object registration]
-    L --> M[Final validation and deliverable manifest]
-```
-
-| Stage | Responsibility | Main source |
-| --- | --- | --- |
-| Observations and evidence | Normalize the source image, collect optional detector candidates, and record evidence for subsequent stages | `detectors.py`, `evidence.py` |
-| Recognition | Identify objects, source text, categories, source bounds, and connector relationships | `recognition.py` |
-| Asset authorization | Decide whether a bounded leaf can use a localized raster crop | `asset_policy.py` |
-| Representation | Describe component-local shapes, paths, text, styles, and approved assets; support standard, compact, or sharded generation | `representation.py`, `representation_compact.py`, `representation_shards.py` |
-| Layout | Specify global position, size, rotation, text scale, and stacking order | `layout.py` |
-| Assembly and compilation | Combine local primitives with global layout and serialize native PowerPoint objects | `assemble.py`, `pptx.py`, `polygons.py`, `backend/compile.mjs` |
-| Validation and provenance | Check structure, editable text identity, shape ownership, and rendered similarity when available | `validation.py`, `provenance.py`, `quality.py` |
-| Refinement | Diagnose a focused issue, apply an owner-scoped declarative patch, and accept or roll back the candidate | `refinement.py` |
-| Registration | Apply bounded, measured corrections to native text, fill, panels, shadows, tracking, and style | `*_registration.py` |
-| Knowledge lifecycle | Record evidence and retrieve bounded guidance for refinement | `knowledge.py`, `evolution.py` |
-
-Python module paths in this table are relative to `decomposer/` unless a directory is shown.
-
-### Execution contracts
-
-- **JSON proposals:** models return structured stage proposals. The deterministic compiler writes PPTX and DrawingML.
-- **Editable objects:** shapes and non-equation text use native PowerPoint objects. Authorized irreducible leaves, such as photographs, may use localized images. Screenshot-like whole-page substitution is blocked.
-- **Traceability:** object labels and primitive IDs connect the stage outputs to scene elements and exported shapes.
-- **Measured repair:** refinement candidates are compiled and rendered before acceptance. Rejected candidates do not replace the accepted output. Registration passes have their own bounded acceptance and rollback checks.
-- **Knowledge boundary:** Recognition, Representation, and Layout receive no runtime memories. Only Refinement retrieves knowledge. The default configuration starts with an empty, per-run knowledge store.
-
-See [the detailed architecture](docs/architecture.md) and [adapter contracts](docs/adapters.md).
-
-## Repository layout
-
-```text
-Decomposer/
-├── run.py                     # CLI entry point and config overlay
-├── decomposer/                # Pipeline, schemas, stages and validation
-├── backend/compile.mjs        # Deterministic PptxGenJS compiler
-├── adapters/                  # Reference vision-model transport
-├── prompts/                   # Stage instructions and Representation variants
-├── configs/
-│   ├── base.json              # Portable pipeline configuration
-│   ├── macos-ocr.json         # Optional Apple Vision OCR override
-│   └── models/                # Model transport templates
-├── examples/                  # Locally generated geometric example
-├── tools/                     # OCR, knowledge audits and snapshot verification
-├── tests/                     # Synthetic and mocked framework checks
-├── docs/                      # Architecture, interfaces and release scope
-├── requirements.txt           # Python runtime dependencies
-├── requirements-dev.txt       # Development dependencies
-└── package-lock.json          # Locked Node.js dependencies
-```
-
-## Installation
-
-### 1. Install prerequisites
-
-| Dependency | Used for | Required when |
-| --- | --- | --- |
-| Python 3.10+ | Pipeline, image processing, validation and adapters | Every run |
-| Node.js 18+ and npm | Native PPTX compilation with PptxGenJS | Every run |
-| LibreOffice, exposing `soffice` | Convert PPTX to PDF for rendering | Rendered runs |
-| Poppler, exposing `pdftoppm` | Convert rendered PDF to an image | Rendered runs |
-| Fonts matching the source figure | Native text rendering | Text-containing rendered runs |
-| A vision-capable model service or configured Codex CLI | Generate stage proposals | Model-backed runs |
-| An OCR or SAM adapter | Optional detector observations | Only when enabled |
-
-Install the system tools using your platform's package manager or installer. The framework does not bundle executables, model services, detector weights, or fonts. PowerPoint itself is not required to compile the presentation.
-
-### 2. Clone and install project dependencies
-
-Use an account with access to this repository:
+需要 Git、Docker 和 Docker Compose。私有仓库需先获得仓库访问权限。
 
 ```bash
 git clone https://github.com/goya4140/Decomposer.git
 cd Decomposer
-
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-npm ci
+cp .env.example .env
 ```
 
-Confirm that `python3` is Python 3.10 or newer before creating the virtual environment. The shell examples below use bash/zsh on macOS or Linux. Run commands from the repository root with the virtual environment activated; relative adapter and detector paths resolve from that directory.
+在 `.env` 中填写三项：
 
-### 3. Check the tools you need
+```dotenv
+DECOMPOSER_BASE_URL=https://your-provider.example/v1
+DECOMPOSER_API_KEY=your-api-key
+DECOMPOSER_MODEL=your-vision-model
+```
+
+模型接口需要支持图片输入和 Chat Completions。地址填写 API 根路径，程序会追加 `/chat/completions`。默认使用 `json_schema` 结构化输出；如果服务商只支持 JSON 模式，将 `DECOMPOSER_RESPONSE_MODE` 改为 `json_object`。`prompt_only` 供不支持这两种模式的兼容接口使用，输出仍会校验。
 
 ```bash
-python --version
-node --version
-npm --version
+./deploy.sh --docker
 ```
 
-For rendered runs, also check:
+打开 **http://127.0.0.1:7860**，上传图片、等待转换、下载 PPTX。首次启动会构建镜像并安装 OCR、字体和渲染器。
 
 ```bash
-soffice --version
-pdftoppm -v
+docker compose logs -f       # 查看启动/运行状态
+docker compose down          # 停止服务，保留结果
+docker compose up -d         # 再次启动
 ```
 
-If a tool is installed outside PATH, set its absolute executable path in the local configuration described below. On macOS, LibreOffice's executable may be located inside its application bundle.
+结果保存在 Docker 的 `decomposer-data` 数据卷中。浏览器刷新后可查看上次任务；`docker compose down -v` 会删除数据。
 
-## Quick start without a model
+## 本机启动
 
-After installing dependencies, generate a small geometric figure and matching JSON proposals locally:
+安装 Python 3.12–3.13、Node.js 20+、LibreOffice、Poppler 和 Tesseract 后，配置同一份 `.env`：
 
 ```bash
-python examples/make_synthetic_example.py --out runs/synthetic-input
-
-python run.py \
-  --input runs/synthetic-input/source.png \
-  --config configs/base.json \
-  --fixture-dir runs/synthetic-input/fixtures \
-  --out runs/synthetic-smoke \
-  --no-render
+./deploy.sh
 ```
 
-This exercises the pipeline with fixture proposals instead of model calls. It requires no API key or research input. `--no-render` compiles the PPTX and performs structural checks; it skips rendering, visual assessment, refinement, and measured registration.
+脚本会建立虚拟环境、安装锁定的依赖并启动服务。macOS 上缺少系统依赖时，会通过已安装的 Homebrew 安装。Linux 建议直接使用上面的 Docker 方式。
 
-To exercise rendering as well, ensure `soffice` and `pdftoppm` are available, then run:
+Ubuntu/Debian 的系统组件可用以下命令安装，Node.js 需另行安装 20 或更新版本：
 
 ```bash
-python run.py \
-  --input runs/synthetic-input/source.png \
-  --config configs/base.json \
-  --fixture-dir runs/synthetic-input/fixtures \
-  --out runs/synthetic-render
+sudo apt-get update
+sudo apt-get install -y libreoffice-impress poppler-utils tesseract-ocr \
+  fonts-liberation fonts-dejavu-core fonts-noto-cjk
 ```
 
-The example includes a stop proposal for Refinement, so neither command needs a model service. It is an installation example, not an evaluation dataset.
+本机运行结果在 `data/jobs/`。停止前请等待当前任务完成；意外中断的任务会标记失败，重新上传即可。转换串行执行，最多接收 8 个正在处理或等待的任务。
 
-## Configure a real run
+## 使用
 
-### 1. Create a local runtime configuration
+- 支持 PNG、JPEG、WebP、TIFF、BMP；最大 20 MiB、2500 万像素，TIFF 使用第一页。
+- 一张输入图生成一页 PPTX，包含原生文字、形状、连线和允许保留的局部图片素材。
+- 默认进行一轮模型修复，并保留必要时的有界追加修复。可以在 `.env` 中设置 `DECOMPOSER_REFINEMENT_ROUNDS=0` 关闭模型修复。
+- PPTX 生成成功但视觉相似度未达到阈值时，界面会明确提示。复杂图、小字、公式和特殊字体请检查预览。
+- 输入图片会发送给配置的模型服务商。API 密钥仅从环境读取；`.env`、上传文件和生成结果不会进入 Git。
+
+仓库附带 `examples/example.png`，可直接上传试用。也可在本机使用命令行：
 
 ```bash
-cp configs/base.json config.local.json
+.venv/bin/python run.py --input examples/example.png --out data/example
 ```
 
-Edit the existing sections in `config.local.json`:
+输出为 `data/example/output/editable.pptx` 和 `preview.png`。每次转换应使用新的输出目录。
 
-| Setting | Meaning |
-| --- | --- |
-| `runtime.node` | Node executable name or absolute path |
-| `runtime.soffice` | LibreOffice executable name or absolute path |
-| `runtime.pdftoppm` | Poppler executable name or absolute path |
-| `runtime.timeout_seconds` | Timeout for compiler and rendering subprocesses |
-| `model.timeout_seconds` | Timeout for a model stage |
-| `detectors.ocr.command` / `detectors.sam.command` | Detector argument lists; `null` disables the detector |
-| `refinement.max_rounds` | Maximum model-assisted refinement rounds; `0` disables this step |
-| `refinement.knowledge_path` | `null` stores new knowledge under `<out>/knowledge`; an explicit path uses a shared user-managed store |
-| `validation` | Acceptance thresholds applied by final validation |
+## 可选配置
 
-The base configuration enables up to three refinement rounds and disables OCR/SAM. Setting `refinement.max_rounds` to `0` does not disable deterministic registration. Use `--no-render` to skip the entire rendered path.
+| 变量 | 默认值 | 用途 |
+|---|---|---|
+| `DECOMPOSER_RESPONSE_MODE` | `json_schema` | `json_schema` / `json_object` / `prompt_only` |
+| `DECOMPOSER_REASONING_EFFORT` | 空 | 仅在模型支持时设置 |
+| `DECOMPOSER_API_TIMEOUT` | `900` | 每次模型请求超时秒数 |
+| `DECOMPOSER_REFINEMENT_ROUNDS` | `1` | 模型修复轮数，范围 0–3 |
+| `DECOMPOSER_OCR_LANG` | `eng` | Tesseract 语言，例如 `eng+chi_sim` |
+| `DECOMPOSER_ACCESS_TOKEN` | 空 | 可选的浏览器/API 访问令牌 |
+| `DECOMPOSER_HOST` | `127.0.0.1` | 本机监听地址 |
+| `DECOMPOSER_PORT` | `7860` | 本机监听端口 |
 
-`config.local.json` is ignored by Git. Keep credentials in process environment variables rather than configuration files.
+Docker 镜像包含英文与简体中文 OCR。其他语言需在镜像中安装对应 Tesseract 语言包；本机也需安装所选语言包。字体影响文字测量和渲染：镜像提供 Liberation、DejaVu 和 Noto CJK；需要特殊字体时，在自定义镜像内安装有权使用的字体。
 
-### 2. Choose a model backend
-
-#### OpenAI-compatible vision endpoint
-
-The reference adapter sends Chat Completions requests containing the source image and stage prompt. Copy its profile to an ignored local file:
+Compose 默认只向本机开放端口。远程使用可通过 SSH 端口转发：
 
 ```bash
-cp configs/models/openai-compatible.example.json config.model.local.json
+ssh -L 7860:127.0.0.1:7860 user@your-host
 ```
 
-Set the endpoint, model, and API key in the activated environment:
+若自行改为对外开放，请设置 `DECOMPOSER_ACCESS_TOKEN`，并由反向代理提供 HTTPS。访问令牌在页面的“访问令牌”处输入。
+
+## 接口
+
+同一个服务提供：
+
+- `POST /api/jobs`：multipart 文件字段 `file`，返回任务 ID。
+- `GET /api/jobs/{id}`：查询排队、阶段、成功或失败状态。
+- `GET /api/jobs/{id}/pptx`：下载 PPTX。
+- `GET /api/jobs/{id}/preview`：下载 PNG 预览。
+- `GET /healthz`：健康检查。
+
+配置了访问令牌时，除首页和健康检查外，请求需带 `Authorization: Bearer <token>`。
+
+## 代码
+
+`decomposer/` 是优化后的重建流程：Recognition、原生对象构建计划、确定性 Composition、字体测量校准、有接受/回滚检查的局部 Refinement，以及修复阶段使用的 memory/skill。
+
+部署版实时处理新图片，使用随环境安装的本地 Tesseract OCR。默认不启用 SAM，不依赖远程检测服务器、旧实验缓存或论文数据；局部素材由视觉识别结果和素材策略共同决定。这里的预处理与使用历史 SAM/OCR 缓存的研究运行不同，不承诺逐像素复现历史结果。
+
+目录只包含运行代码、提示词、默认配置、精简的修复知识、部署文件、示例和运行回归测试。没有论文、benchmark、服务器配置或历史实验产物。
+
+开发验证：
 
 ```bash
-export MODEL_BASE_URL="https://your-provider.example/v1"
-export MODEL_NAME="your-vision-model"
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -q
 ```
 
-For bash, enter the key using:
-
-```bash
-read -r -s -p "API key: " MODEL_API_KEY
-printf '\n'
-export MODEL_API_KEY
-```
-
-For zsh, use:
-
-```zsh
-read -r -s 'MODEL_API_KEY?API key: '
-printf '\n'
-export MODEL_API_KEY
-```
-
-Run the key-entry command for your shell. The profile's `environment_allowlist` passes these named variables to the adapter. `MODEL_BASE_URL` should end at the API base path, such as `/v1`; the adapter appends `/chat/completions`.
-
-The template requests `json_schema`. If the endpoint uses another output mode, change the value after `--response-mode` in `config.model.local.json` to `json_object` or `prompt_only`. The selected model must support image inputs and the requested response mode. Endpoint-specific limits can be configured through the adapter's command arguments; inspect them with:
-
-```bash
-python adapters/openai_compatible_vision.py --help
-```
-
-#### Codex CLI
-
-Install and authenticate your Codex CLI separately, then copy the profile:
-
-```bash
-cp configs/models/codex.example.json config.model.local.json
-```
-
-Replace `YOUR_AVAILABLE_VISION_MODEL` with a model available to your account. Set `model.command` if `codex` is outside PATH. The transport supplies the image, schema, isolated workspace, and tool restrictions; the installed CLI must support the flags used in `decomposer/model.py`.
-
-### 3. Optionally enable detector observations
-
-OCR and SAM use subprocess adapters that receive a JSON request on stdin and return JSON candidates on stdout. Implementations and detector weights are supplied separately. See [the detector contract](docs/adapters.md#detectors).
-
-For Apple Vision OCR on macOS, with Swift available, copy the `detectors.ocr` section from `configs/macos-ocr.json` into `config.local.json`:
-
-```json
-{
-  "command": ["python3", "tools/apple_vision_ocr.py"],
-  "timeout_seconds": 600,
-  "options": {}
-}
-```
-
-This JSON replaces the value of `detectors.ocr`, not the entire configuration. Keep `detectors.sam.command` as `null` unless you have configured a compatible SAM adapter.
-
-## Run on your own figure
-
-Use a local raster image readable by Pillow, such as PNG or JPEG:
-
-```bash
-python run.py \
-  --input /absolute/path/to/figure.png \
-  --config config.local.json \
-  --model-profile config.model.local.json \
-  --out runs/my-figure
-```
-
-Choose a new output directory for each independent figure or configuration. `--model-profile` recursively overlays its JSON on `--config`; unspecified base settings are retained. Although named a model profile, the overlay can contain other configuration sections.
-
-To resume an interrupted run with the same input and configuration, repeat the command with `--resume`:
-
-```bash
-python run.py \
-  --input /absolute/path/to/figure.png \
-  --config config.local.json \
-  --model-profile config.model.local.json \
-  --out runs/my-figure \
-  --resume
-```
-
-Resume checks completed canonical stages and model-call metadata before reuse. It recomputes from an invalid or incomplete stage. Use a fresh output directory when changing models or configuration; resume is not a configuration-change detector.
-
-| Argument | Purpose |
-| --- | --- |
-| `--input` | Required source image path |
-| `--config` | Required base/runtime JSON configuration |
-| `--model-profile` | Optional recursive configuration overlay |
-| `--out` | Required run output directory |
-| `--fixture-dir` | Read stage proposals from local JSON fixtures instead of model calls |
-| `--no-render` | Compile and inspect without rendering, visual refinement, or registration |
-| `--resume` | Reuse valid completed stages in the output directory |
-
-## Outputs and run status
-
-A run records stage proposals and canonical outputs alongside the final deliverables:
-
-```text
-runs/my-figure/
-├── status.json                # Terminal status or failure information
-├── resume-report.json         # Stage reuse and recomputation decisions
-├── input/                     # Normalized source and input identity
-├── observations/              # Detector candidates and Evidence IR
-├── calls/                     # Model requests, responses and metadata
-├── recognition/               # Canonical recognized objects
-├── representation/            # Components and asset decisions
-├── layout/                    # Global placements
-├── refinement/                # Decisions and candidate assessments
-└── output/
-    ├── editable.pptx          # Editable single-slide presentation
-    ├── scene.json             # Assembled scene IR
-    ├── report.json            # Compiler, structure and rendering report
-    ├── provenance.json        # Object-to-export traceability
-    ├── validation.json        # Final checks and failure details
-    ├── page-manifest.json     # Deliverable manifest
-    └── preview.png            # Present when rendering is available
-```
-
-Individual registration passes can also record their own directories. Their presence depends on the execution path. Run directories contain the user's own inputs and generated artifacts and are ignored by Git.
-
-Inspect `status.json` and `output/validation.json` before using the deliverable:
-
-| Status | Meaning |
-| --- | --- |
-| `structural_success` | Compilation and configured structural checks passed; rendering was skipped or unavailable |
-| `render_success` | Rendering and the configured final validation checks passed |
-| `validation_failed` | Final validation rejected the run; inspect failed checks |
-| `runtime_failed` | A required stage or subprocess failed; inspect the recorded error and stage logs |
-
-Also inspect `degraded`, compiler fallbacks, and warnings. The existence of a PPTX alone does not establish a successful run. The CLI can finish normally while reporting `validation_failed`; automation should read the JSON status rather than rely only on the process exit code.
-
-## Troubleshooting
-
-| Symptom | What to check |
-| --- | --- |
-| Compiler failure | Run `npm ci`; check `runtime.node` and `output/compile.log` |
-| Missing preview or render failure | Check `soffice`, `pdftoppm`, their configured paths, timeout, and `output/render.log` when present |
-| Adapter cannot find its script | Run from the repository root with the virtual environment active |
-| Model authentication or request failure | Check environment variables, the profile allowlist, endpoint/model support, and `calls/<stage>/metadata.json` and `stderr.log` |
-| Invalid model JSON | Check the provider's response-mode support and stage diagnostics; adjust the local profile rather than treating fallback content as a completed stage |
-| OCR/SAM candidates unavailable | Inspect `observations/candidates.json` and detector stderr logs; disabled detectors are expected when their commands are `null` |
-| Text renders differently | Install the appropriate fonts and verify the renderer environment |
-| `validation_failed` | Read `output/validation.json` and inspect the preview and provenance before accepting the presentation |
-
-## Development
-
-Install the development dependencies and run the framework checks:
-
-```bash
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
-```
-
-Tests use generated inputs, fixtures, and mocked model responses. Compiler integration checks require Node.js and the npm dependencies; rendered checks require the system renderer. No model API credentials are required for the fixture example or framework checks.
-
-For extending the framework, begin with [architecture](docs/architecture.md), [adapter interfaces](docs/adapters.md), and [release scope](docs/release-scope.md). Add a model or detector through its transport contract, while retaining the stage ownership, editable-text, raster-authorization, and rollback boundaries.
-
-## License
-
-Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Third-party dependencies retain their respective licenses.
+完整烟测通过本地模拟视觉 API 实际执行 OCR、最新重建流程、Node 编译、LibreOffice 渲染、上传和下载，不消耗模型 API 额度。真实模型的兼容性和输出质量取决于配置的服务商。

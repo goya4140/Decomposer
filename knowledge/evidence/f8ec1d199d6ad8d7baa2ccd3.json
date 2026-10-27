@@ -1,0 +1,13 @@
+{
+  "evidence_id": "f8ec1d199d6ad8d7baa2ccd3",
+  "accepted": false,
+  "owner_stage": "representation",
+  "mechanism": "decorative-line-arrowhead-inheritance",
+  "round_id": "round-001",
+  "sample_id": "seed-example",
+  "assessment": {
+    "local_pixel_delta": 5.5e-05,
+    "local_edge_delta": -7.6e-05,
+    "global_pixel_delta": 3e-06
+  }
+}
