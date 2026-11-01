@@ -1,0 +1,9 @@
+{
+  "sample": "acl-2025-241212201-fig2",
+  "source": "existing Decomposer output",
+  "native_shapes": 199,
+  "text_runs": 70,
+  "image_assets": 1,
+  "object_map": "Derived from PPTX OOXML bounds; visualization, not an editor screenshot.",
+  "pptx": "../../examples/editable-demo.pptx"
+}

@@ -1,6 +1,22 @@
-# Decomposer
+<p align="center"><img src="assets/hero.svg" width="100%" alt="Decomposer — scientific figures, ready to edit" /></p>
 
-[English](README.md) | 简体中文
+<p align="center"><a href="README.md">English</a> · <b>简体中文</b> · <a href="#docker-启动">一键启动</a> · <a href="examples/editable-demo.pptx">下载可编辑示例</a></p>
+
+### 可以全选，更能逐个修改。
+
+[![Native object boundaries in a real Decomposer PPTX](assets/demo/object-map.svg)](examples/editable-demo.pptx)
+
+打开[示例 PPTX](examples/editable-demo.pptx)，点击幻灯片画布，按 **Ctrl / Cmd + A** 全选；文字、形状和连线都可以分别选中、移动和修改。
+
+<details>
+<summary>查看原图与重建结果</summary>
+
+| 输入图片 | PPTX 重建结果 |
+| :---: | :---: |
+| ![Input scientific figure](assets/demo/input.png) | ![Reconstructed scientific figure](assets/demo/reconstructed.png) |
+
+</details>
+
 
 ## Docker 启动
 
