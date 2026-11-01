@@ -1,19 +1,19 @@
-<p align="center"><img src="assets/hero.svg" width="100%" alt="Decomposer — scientific figures, ready to edit" /></p>
+<p align="center"><img src="app/assets/hero.svg" width="100%" alt="Decomposer — scientific figures, ready to edit" /></p>
 
-<p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a> · <a href="#start-with-docker">Quick start</a> · <a href="examples/editable-demo.pptx">Download demo PPTX</a></p>
+<p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a> · <a href="#start-with-docker">Quick start</a> · <a href="app/examples/editable-demo.pptx">Download demo PPTX</a></p>
 
 ### Select it. Move it. Make it yours.
 
-[![Native object boundaries in a real Decomposer PPTX](assets/demo/object-map.svg)](examples/editable-demo.pptx)
+[![Native object boundaries in a real Decomposer PPTX](app/assets/demo/object-map.svg)](app/examples/editable-demo.pptx)
 
-Open the [demo PPTX](examples/editable-demo.pptx), click the slide canvas and press **Ctrl / Cmd + A**. Text, shapes and connectors remain individually selectable.
+Open the [demo PPTX](app/examples/editable-demo.pptx), click the slide canvas and press **Ctrl / Cmd + A**. Text, shapes and connectors remain individually selectable.
 
 <details>
 <summary>Original image → reconstructed PowerPoint</summary>
 
 | Input image | Reconstructed PPTX |
 | :---: | :---: |
-| ![Input scientific figure](assets/demo/input.png) | ![Reconstructed scientific figure](assets/demo/reconstructed.png) |
+| ![Input scientific figure](app/assets/demo/input.png) | ![Reconstructed scientific figure](app/assets/demo/reconstructed.png) |
 
 </details>
 
@@ -24,7 +24,7 @@ Install Git, Docker and Docker Compose, then run:
 
 ```bash
 git clone https://github.com/goya4140/Decomposer.git
-cd Decomposer
+cd Decomposer/app
 cp .env.example .env
 ```
 

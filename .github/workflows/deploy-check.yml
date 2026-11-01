@@ -10,6 +10,9 @@ jobs:
   container:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
       - name: Build deployment image
